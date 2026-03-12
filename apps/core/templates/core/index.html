@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block title %}{{ app_name }}{% endblock %}
+
+{% block content %}
+<main style="font-family: system-ui; max-width: 800px; margin: 2rem auto; padding: 1rem;">
+    <h1>{{ app_name }}</h1>
+    <p>企业运营与自动化工作平台 · Django 架构</p>
+    <p>支持 PC、平板、手机多端访问 · 跨 Windows / Linux 运行</p>
+    <ul>
+        <li><a href="/admin/">管理后台</a></li>
+        <li><a href="/health/">健康检查</a></li>
+    </ul>
+</main>
+{% endblock %}

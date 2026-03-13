@@ -1,0 +1,31 @@
+{% extends "base_backend.html" %}
+
+{% block title %}删除组织{% endblock %}
+{% block page_title %}删除组织{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'organizations:list' %}">组织架构</a></li>
+<li class="breadcrumb-item active">删除确认</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-danger">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-exclamation-triangle mr-2"></i>确认删除</h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <p>确定要删除组织 <strong>{{ org.name }}</strong> 吗？</p>
+      {% if org.children.exists %}
+      <p class="text-danger">该组织下有 {{ org.children.count }} 个下级组织，删除后下级将变为顶级组织。</p>
+      {% endif %}
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-danger">
+        <i class="fas fa-trash"></i> 确认删除
+      </button>
+      <a href="{% url 'organizations:list' %}" class="btn btn-secondary">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

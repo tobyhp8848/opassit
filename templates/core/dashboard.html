@@ -1,0 +1,68 @@
+{% extends "base_backend.html" %}
+
+{% block title %}仪表盘{% endblock %}
+{% block page_title %}仪表盘{% endblock %}
+
+{% block content %}
+<div class="row">
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-info">
+      <div class="inner">
+        <h3>组织</h3>
+        <p>组织架构管理</p>
+      </div>
+      <div class="icon"><i class="fas fa-building"></i></div>
+      <a href="{% url 'organizations:list' %}" class="small-box-footer">管理 <i class="fas fa-arrow-circle-right"></i></a>
+    </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-success">
+      <div class="inner">
+        <h3>用户</h3>
+        <p>用户与权限</p>
+      </div>
+      <div class="icon"><i class="fas fa-users"></i></div>
+      <a href="{% url 'accounts:user_list' %}" class="small-box-footer">管理 <i class="fas fa-arrow-circle-right"></i></a>
+    </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-warning">
+      <div class="inner">
+        <h3>角色</h3>
+        <p>角色与权限</p>
+      </div>
+      <div class="icon"><i class="fas fa-user-tag"></i></div>
+      <a href="/admin/accounts/role/" class="small-box-footer">管理 <i class="fas fa-arrow-circle-right"></i></a>
+    </div>
+  </div>
+  <div class="col-lg-3 col-6">
+    <div class="small-box bg-danger">
+      <div class="inner">
+        <h3>自动化</h3>
+        <p>自动化任务</p>
+      </div>
+      <div class="icon"><i class="fas fa-robot"></i></div>
+      <a href="/admin/automation/automationtask/" class="small-box-footer">管理 <i class="fas fa-arrow-circle-right"></i></a>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header">
+        <h3 class="card-title">欢迎使用 OPASSIT</h3>
+      </div>
+      <div class="card-body">
+        <p>企业运营与自动化工作平台，支持：</p>
+        <ul>
+          <li><strong>组织架构</strong>：单公司、集团与分子公司、总代理商与子代理商</li>
+          <li><strong>权限管理</strong>：用户、角色、组织关联的完整权限体系</li>
+          <li><strong>自动化任务</strong>：数据抓取、定时任务、工作流（持续扩展中）</li>
+        </ul>
+        <p class="mb-0">从左侧菜单进入各功能模块。</p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

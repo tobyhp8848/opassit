@@ -1,0 +1,113 @@
+{% extends "base_backend.html" %}
+{% load account_tags %}
+
+{% block title %}用户管理{% endblock %}
+{% block page_title %}用户管理{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
+<li class="breadcrumb-item active">用户管理</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-users mr-2"></i>用户管理</h3>
+    <div class="card-tools">
+      <a href="{% url 'accounts:user_add' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> 新增用户
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="get" class="mb-3 row">
+      <div class="col-md-4">
+        <input type="text" name="q" class="form-control" placeholder="搜索用户名/邮箱" value="{{ search_q }}">
+      </div>
+      <div class="col-md-2">
+        <select name="is_active" class="form-control">
+          <option value="">全部状态</option>
+          <option value="1" {% if is_active_filter == "1" %}selected{% endif %}>启用</option>
+          <option value="0" {% if is_active_filter == "0" %}selected{% endif %}>停用</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="is_staff" class="form-control">
+          <option value="">全部类型</option>
+          <option value="1" {% if is_staff_filter == "1" %}selected{% endif %}>后台用户</option>
+          <option value="0" {% if is_staff_filter == "0" %}selected{% endif %}>普通用户</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info"><i class="fas fa-search"></i> 筛选</button>
+      </div>
+    </form>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-striped">
+        <thead class="thead-light">
+          <tr>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>邮箱</th>
+            <th>主组织</th>
+            <th>角色</th>
+            <th>状态</th>
+            <th>类型</th>
+            <th>注册时间</th>
+            <th width="160">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td><strong>{{ u.username }}</strong></td>
+            <td>{{ u.get_full_name|default:"—" }}</td>
+            <td>{{ u.email|default:"—" }}</td>
+            <td>{{ u|user_org }}</td>
+            <td>{% with roles=u.org_roles.all %}{% if roles %}{% for r in roles %}<span class="badge badge-info">{{ r.role.name }}</span> {% endfor %}{% else %}—{% endif %}{% endwith %}</td>
+            <td>
+              {% if u.is_active %}<span class="badge badge-success">启用</span>{% else %}<span class="badge badge-danger">停用</span>{% endif %}
+            </td>
+            <td>
+              {% if u.is_superuser %}<span class="badge badge-danger">超级管理员</span>
+              {% elif u.is_staff %}<span class="badge badge-primary">后台用户</span>
+              {% else %}<span class="badge badge-secondary">普通</span>{% endif %}
+            </td>
+            <td>{{ u.date_joined|date:"Y-m-d H:i" }}</td>
+            <td>
+              <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-sm btn-outline-primary" title="编辑">
+                <i class="fas fa-edit"></i>
+              </a>
+              {% if u.pk != user.pk %}
+              <a href="{% url 'accounts:user_delete' u.pk %}" class="btn btn-sm btn-outline-danger" title="删除"
+                 onclick="return confirm('确定删除该用户？');">
+                <i class="fas fa-trash"></i>
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">暂无用户，<a href="{% url 'accounts:user_add' %}">点击新增</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj %}
+    <nav class="mt-2">
+      <ul class="pagination pagination-sm justify-content-end">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if is_active_filter %}&is_active={{ is_active_filter }}{% endif %}{% if is_staff_filter %}&is_staff={{ is_staff_filter }}{% endif %}">上一页</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">第 {{ page_obj.number }}/{{ page_obj.paginator.num_pages }} 页</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if is_active_filter %}&is_active={{ is_active_filter }}{% endif %}{% if is_staff_filter %}&is_staff={{ is_staff_filter }}{% endif %}">下一页</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

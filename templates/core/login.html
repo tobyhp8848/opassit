@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-hans">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>登录 - OPASSIT 企业运营与自动化工作平台</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/3.2.0/css/adminlte.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body.login-page {
+      min-height: 100vh;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(160deg, #0f172a 0%, #1e293b 40%, #1e3a5f 100%);
+      position: relative;
+      overflow: hidden;
+    }
+    body.login-page::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: 
+        linear-gradient(rgba(255,255,255,.02) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,.02) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+    }
+    body.login-page::after {
+      content: '';
+      position: absolute;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(ellipse at 30% 20%, rgba(59, 130, 246, 0.08) 0%, transparent 50%),
+                  radial-gradient(ellipse at 70% 80%, rgba(30, 64, 175, 0.06) 0%, transparent 50%);
+      pointer-events: none;
+    }
+    .login-page .login-box {
+      position: relative;
+      z-index: 1;
+    }
+    .login-page .card {
+      background: #fff;
+      border: 1px solid rgba(255,255,255,.15);
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,.45);
+    }
+    .login-page .card-primary.card-outline { border-top: 3px solid #2563eb; }
+    .login-page .card-header {
+      background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+      border-bottom: none;
+    }
+    .login-page .card-header h1 { color: #fff; font-weight: 700; letter-spacing: -0.02em; }
+    .login-page .card-header .text-muted { color: rgba(255,255,255,.85) !important; }
+  </style>
+</head>
+<body class="hold-transition login-page">
+<div class="login-box">
+  <div class="card card-outline card-primary">
+    <div class="card-header text-center">
+      <h1><b>OPASSIT</b></h1>
+      <p class="text-muted mb-0">企业运营与自动化工作平台</p>
+    </div>
+    <div class="card-body">
+      {% if form.errors %}
+      <div class="alert alert-danger alert-dismissible">
+        <button type="button" class="close" data-dismiss="alert">&times;</button>
+        <i class="icon fas fa-ban"></i> 用户名或密码错误，请重试。
+      </div>
+      {% endif %}
+      <p class="login-box-msg">登录后进入管理后台</p>
+      <form action="{% url 'core:login' %}" method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <div class="input-group mb-3">
+          <input type="text" name="username" class="form-control" placeholder="用户名" required autofocus
+                 value="{{ form.username.value|default:'' }}">
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-user"></span>
+            </div>
+          </div>
+        </div>
+        <div class="input-group mb-3">
+          <input type="password" name="password" class="form-control" placeholder="密码" required>
+          <div class="input-group-append">
+            <div class="input-group-text">
+              <span class="fas fa-lock"></span>
+            </div>
+          </div>
+        </div>
+        <div class="row">
+          <div class="col-8">
+            <div class="icheck-primary">
+              <input type="checkbox" name="remember_me" id="remember">
+              <label for="remember">记住我</label>
+            </div>
+          </div>
+          <div class="col-4">
+            <button type="submit" class="btn btn-primary btn-block">登录</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/4.6.0/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/admin-lte/3.2.0/js/adminlte.min.js"></script>
+</body>
+</html>

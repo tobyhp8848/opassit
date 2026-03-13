@@ -18,6 +18,7 @@ DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "yes")
 ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 INSTALLED_APPS = [
+    "jazzmin",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -26,6 +27,9 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django.contrib.humanize",
     "corsheaders",
+    "apps.organizations",
+    "apps.accounts",
+    "apps.automation",
     "apps.core",
 ]
 
@@ -107,3 +111,42 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 _cors = os.getenv("CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000")
 CORS_ALLOWED_ORIGINS = [x.strip() for x in _cors.split(",") if x.strip()]
 CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+
+# === 登录/登出 ===
+LOGIN_URL = "/"
+LOGIN_REDIRECT_URL = "/dashboard/"
+LOGOUT_REDIRECT_URL = "/"
+
+# === Jazzmin Admin 主题 ===
+JAZZMIN_SETTINGS = {
+    "site_title": "OPASSIT 管理后台",
+    "site_header": "OPASSIT",
+    "site_brand": "企业运营与自动化",
+    "welcome_sign": "欢迎使用 OPASSIT 管理后台",
+    "search_model": ["organizations.Organization", "auth.User", "accounts.Role"],
+    "topmenu_links": [
+        {"name": "仪表盘", "url": "/dashboard/"},
+        {"name": "首页", "url": "/"},
+    ],
+    "show_sidebar": True,
+    "navigation_expanded": True,
+    "icons": {
+        "organizations": "fas fa-building",
+        "organizations.Organization": "fas fa-sitemap",
+        "auth": "fas fa-users-cog",
+        "auth.user": "fas fa-user",
+        "accounts": "fas fa-user-tag",
+        "accounts.role": "fas fa-user-shield",
+        "automation": "fas fa-robot",
+        "automation.automationtask": "fas fa-tasks",
+    },
+    "order_with_respect_to": ["organizations", "auth", "accounts", "automation"],
+    "custom_css": None,
+    "custom_js": None,
+    "show_ui_builder": False,
+    "language_chooser": False,
+    "changeform_format": "horizontal_tabs",
+    "changeform_format_overrides": {
+        "organizations.organization": "collapsible",
+    },
+}

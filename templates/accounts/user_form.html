@@ -1,0 +1,121 @@
+{% extends "base_backend.html" %}
+
+{% block title %}{% if user_obj %}编辑{% else %}新增{% endif %}用户{% endblock %}
+{% block page_title %}{% if user_obj %}编辑{% else %}新增{% endif %}用户{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
+<li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">用户管理</a></li>
+<li class="breadcrumb-item active">{% if user_obj %}编辑{% else %}新增{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-user mr-2"></i>{% if user_obj %}编辑用户{% else %}新增用户{% endif %}</h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_username">用户名 <span class="text-danger">*</span></label>
+            <input type="text" name="username" id="id_username" class="form-control {% if form.username.errors %}is-invalid{% endif %}"
+                   value="{{ form.username.value|default:'' }}" required maxlength="150" {% if user_obj %}readonly{% endif %}>
+            {% if form.username.errors %}<div class="invalid-feedback d-block">{{ form.username.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_email">邮箱</label>
+            <input type="email" name="email" id="id_email" class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                   value="{{ form.email.value|default:'' }}">
+            {% if form.email.errors %}<div class="invalid-feedback d-block">{{ form.email.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% if not user_obj %}
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_password1">密码 <span class="text-danger">*</span></label>
+            <input type="password" name="password1" id="id_password1" class="form-control {% if form.password1.errors %}is-invalid{% endif %}"
+                   required>
+            {% if form.password1.help_text %}<small class="form-text text-muted">{{ form.password1.help_text }}</small>{% endif %}
+            {% if form.password1.errors %}<div class="invalid-feedback d-block">{{ form.password1.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_password2">确认密码 <span class="text-danger">*</span></label>
+            <input type="password" name="password2" id="id_password2" class="form-control {% if form.password2.errors %}is-invalid{% endif %}"
+                   required>
+            {% if form.password2.errors %}<div class="invalid-feedback d-block">{{ form.password2.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endif %}
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_first_name">姓</label>
+            <input type="text" name="first_name" id="id_first_name" class="form-control" value="{{ form.first_name.value|default:'' }}">
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_last_name">名</label>
+            <input type="text" name="last_name" id="id_last_name" class="form-control" value="{{ form.last_name.value|default:'' }}">
+          </div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_organization">主组织</label>
+            <select name="organization" id="id_organization" class="form-control">
+              <option value="">— 无</option>
+              {% for o in form.fields.organization.queryset %}
+              <option value="{{ o.pk }}" {% if form.organization.value == o.pk %}selected{% endif %}>{{ o.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_phone">手机号</label>
+            <input type="text" name="phone" id="id_phone" class="form-control" value="{{ form.phone.value|default:'' }}">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <div class="custom-control custom-switch custom-control-inline">
+          <input type="hidden" name="is_active" value="0">
+          <input type="checkbox" name="is_active" value="1" id="id_is_active" class="custom-control-input" {% if form.is_active.value|default:True %}checked{% endif %}>
+          <label class="custom-control-label" for="id_is_active">启用</label>
+        </div>
+        <div class="custom-control custom-switch custom-control-inline ml-3">
+          <input type="hidden" name="is_staff" value="0">
+          <input type="checkbox" name="is_staff" value="1" id="id_is_staff" class="custom-control-input" {% if form.is_staff.value %}checked{% endif %}>
+          <label class="custom-control-label" for="id_is_staff">后台权限</label>
+        </div>
+        <div class="custom-control custom-switch custom-control-inline ml-3">
+          <input type="hidden" name="is_superuser" value="0">
+          <input type="checkbox" name="is_superuser" value="1" id="id_is_superuser" class="custom-control-input" {% if form.is_superuser.value %}checked{% endif %}>
+          <label class="custom-control-label" for="id_is_superuser">超级管理员</label>
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
+      <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">取消</a>
+      {% if user_obj and user_obj.pk == user.pk %}
+      <a href="{% url 'core:password_change' %}" class="btn btn-outline-secondary ml-2">修改密码</a>
+      {% endif %}
+    </div>
+  </form>
+</div>
+{% endblock %}

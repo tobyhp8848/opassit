@@ -22,6 +22,8 @@ def health_view(request):
 
 urlpatterns = [
     path("", include("apps.core.urls")),
+    path("dashboard/organizations/", include("apps.organizations.urls")),
+    path("dashboard/", include("apps.accounts.urls")),
     path("api/status/", api_status_view),
     path("health/", health_view),
     path("admin/", admin.site.urls),

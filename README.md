@@ -44,9 +44,9 @@ cp .env.example .env
 
 ```bash
 cp .env.example .env
-docker-compose up -d
-# Web: http://localhost:8000
-# MySQL: localhost:3306
+docker compose up -d
+# Web: http://localhost:8080
+# MySQL: localhost:3307（若本机 3306 已被占用）
 ```
 
 ## 初始化与启动

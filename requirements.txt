@@ -3,6 +3,7 @@
 
 # === Web 框架 ===
 Django>=5.0,<6.0
+django-jazzmin>=3.0.0
 
 # === 数据库（PyMySQL 纯 Python，MySQL 8 需 cryptography）===
 pymysql>=1.1.0

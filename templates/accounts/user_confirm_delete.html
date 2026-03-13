@@ -1,0 +1,27 @@
+{% extends "base_backend.html" %}
+
+{% block title %}删除用户{% endblock %}
+{% block page_title %}删除用户{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
+<li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">用户管理</a></li>
+<li class="breadcrumb-item active">删除确认</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-danger">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-exclamation-triangle mr-2"></i>确认删除</h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <p>确定要删除用户 <strong>{{ user_obj.username }}</strong> 吗？此操作不可恢复。</p>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> 确认删除</button>
+      <a href="{% url 'accounts:user_list' %}" class="btn btn-secondary">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base_backend.html" %}
+{% load organization_tags %}
+
+{% block title %}组织管理{% endblock %}
+{% block page_title %}组织管理{% endblock %}
+{% block breadcrumb %}<li class="breadcrumb-item active">组织架构</li>{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-building mr-2"></i>组织架构</h3>
+    <div class="card-tools">
+      <a href="{% url 'organizations:add' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> 新增组织
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <!-- 筛选 -->
+    <form method="get" class="mb-3 row g-2">
+      <div class="col-md-3">
+        <input type="text" name="q" class="form-control" placeholder="搜索名称/编码" value="{{ search_q }}">
+      </div>
+      <div class="col-md-2">
+        <select name="org_type" class="form-control">
+          <option value="">全部类型</option>
+          {% for k, v in org_type_choices %}
+          <option value="{{ k }}" {% if org_type_filter == k %}selected{% endif %}>{{ v }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <select name="is_active" class="form-control">
+          <option value="">全部状态</option>
+          <option value="1" {% if is_active_filter == "1" %}selected{% endif %}>启用</option>
+          <option value="0" {% if is_active_filter == "0" %}selected{% endif %}>停用</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <button type="submit" class="btn btn-info"><i class="fas fa-search"></i> 筛选</button>
+      </div>
+    </form>
+
+    <!-- 列表 -->
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-striped">
+        <thead class="thead-light">
+          <tr>
+            <th>组织名称</th>
+            <th>编码</th>
+            <th>类型</th>
+            <th>上级组织</th>
+            <th>下级数</th>
+            <th>状态</th>
+            <th>创建时间</th>
+            <th width="140">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for org in organizations %}
+          <tr>
+            <td><strong>{{ org.name }}</strong></td>
+            <td>{{ org.code|default:"—" }}</td>
+            <td>
+              <span class="badge badge-{{ org.org_type|org_badge_color }}">{{ org.get_org_type_display }}</span>
+            </td>
+            <td>{{ org.parent.name|default:"— 顶级" }}</td>
+            <td>{{ org.children.count }}</td>
+            <td>
+              {% if org.is_active %}
+              <span class="badge badge-success">启用</span>
+              {% else %}
+              <span class="badge badge-danger">停用</span>
+              {% endif %}
+            </td>
+            <td>{{ org.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              <a href="{% url 'organizations:edit' org.pk %}" class="btn btn-sm btn-outline-primary" title="编辑">
+                <i class="fas fa-edit"></i>
+              </a>
+              <a href="{% url 'organizations:delete' org.pk %}" class="btn btn-sm btn-outline-danger" title="删除"
+                 onclick="return confirm('确定删除该组织？');">
+                <i class="fas fa-trash"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">暂无组织数据，<a href="{% url 'organizations:add' %}">点击新增</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj %}
+    <nav class="mt-2">
+      <ul class="pagination pagination-sm justify-content-end">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if org_type_filter %}&org_type={{ org_type_filter }}{% endif %}{% if is_active_filter %}&is_active={{ is_active_filter }}{% endif %}">上一页</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">第 {{ page_obj.number }}/{{ page_obj.paginator.num_pages }} 页</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search_q %}&q={{ search_q }}{% endif %}{% if org_type_filter %}&org_type={{ org_type_filter }}{% endif %}{% if is_active_filter %}&is_active={{ is_active_filter }}{% endif %}">下一页</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

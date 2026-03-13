@@ -1,0 +1,142 @@
+{% extends "base_backend.html" %}
+
+{% block title %}{% if role %}编辑{% else %}新增{% endif %}角色{% endblock %}
+{% block page_title %}{% if role %}编辑{% else %}新增{% endif %}角色{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
+<li class="breadcrumb-item"><a href="{% url 'accounts:role_list' %}">角色管理</a></li>
+<li class="breadcrumb-item active">{% if role %}编辑{% else %}新增{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-user-shield mr-2"></i>{% if role %}编辑角色{% else %}新增角色{% endif %}</h3>
+    {% if role %}
+    <div class="card-tools">
+      {% if not role.is_system %}
+      <a href="{% url 'accounts:role_delete' role.pk %}" class="btn btn-tool text-danger" title="删除">
+        <i class="fas fa-trash"></i>
+      </a>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_name">角色名称 <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="id_name" class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                   value="{{ form.name.value|default:'' }}" required maxlength="50"
+                   {% if role and role.is_system %}readonly placeholder="系统角色不可修改"{% endif %}>
+            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_code">角色编码 <span class="text-danger">*</span></label>
+            <input type="text" name="code" id="id_code" class="form-control {% if form.code.errors %}is-invalid{% endif %}"
+                   value="{{ form.code.value|default:'' }}" required maxlength="30"
+                   {% if role and role.is_system %}readonly placeholder="系统角色不可修改"{% endif %}>
+            {% if form.code.errors %}<div class="invalid-feedback d-block">{{ form.code.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="id_description">描述</label>
+        <textarea name="description" id="id_description" class="form-control" rows="2"
+                  placeholder="可选，简要说明该角色的用途">{{ form.description.value|default:'' }}</textarea>
+      </div>
+
+      <div class="form-group">
+        <div class="custom-control custom-switch custom-control-inline">
+          {% if role and role.is_system %}
+          <input type="hidden" name="is_system" value="1">
+          {% else %}
+          <input type="hidden" name="is_system" value="0">
+          {% endif %}
+          <input type="checkbox" name="is_system" value="1" id="id_is_system" class="custom-control-input"
+                 {% if form.is_system.value or role and role.is_system %}checked{% endif %}
+                 {% if role and role.is_system %}disabled{% endif %}>
+          <label class="custom-control-label" for="id_is_system">系统角色（不可删除）</label>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>权限配置</label>
+        <div class="mb-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-role-perm="check-all">
+            <i class="fas fa-check-double"></i> 全选
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-role-perm="uncheck-all">
+            <i class="fas fa-square"></i> 取消全选
+          </button>
+        </div>
+        <div class="border rounded p-3 bg-light" style="max-height: 320px; overflow-y: auto;">
+          {% for app_label, perms in permissions_grouped.items %}
+          <div class="mb-3">
+            <div class="font-weight-bold text-primary mb-2">
+              <i class="fas fa-folder-open mr-1"></i> {{ app_label }}
+              <button type="button" class="btn btn-xs btn-link p-0 ml-1" data-role-perm="toggle-group" data-group="{{ app_label }}">
+                切换
+              </button>
+            </div>
+            <div class="pl-3">
+              {% for perm in perms %}
+              <div class="custom-control custom-checkbox custom-control-inline mb-1 mr-3">
+                <input type="checkbox" name="permissions" value="{{ perm.pk }}" id="perm_{{ perm.pk }}"
+                       class="custom-control-input perm-checkbox" data-group="{{ app_label }}"
+                       {% if perm.pk in role_perm_ids %}checked{% endif %}>
+                <label class="custom-control-label" for="perm_{{ perm.pk }}">
+                  {{ perm.content_type.model }} | {{ perm.name }}
+                </label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          {% empty %}
+          <p class="text-muted mb-0">暂无权限</p>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
+      <a href="{% url 'accounts:role_list' %}" class="btn btn-secondary">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  document.querySelectorAll('[data-role-perm="check-all"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.perm-checkbox').forEach(function(cb) { cb.checked = true; });
+    });
+  });
+  document.querySelectorAll('[data-role-perm="uncheck-all"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      document.querySelectorAll('.perm-checkbox').forEach(function(cb) { cb.checked = false; });
+    });
+  });
+  document.querySelectorAll('[data-role-perm="toggle-group"]').forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var g = this.dataset.group;
+      var cbs = document.querySelectorAll('.perm-checkbox[data-group="' + g + '"]');
+      var allChecked = Array.from(cbs).every(function(c) { return c.checked; });
+      cbs.forEach(function(c) { c.checked = !allChecked; });
+    });
+  });
+})();
+</script>
+{% endblock %}

@@ -1,11 +1,25 @@
 """
 自动化任务模型 - 例行、重复性工作的自动化
 """
+import random
+import string
+
 from django.contrib.auth import get_user_model
 from django.db import models
 from apps.organizations.models import Organization
 
 User = get_user_model()
+
+
+def generate_task_id():
+    """生成 10 位唯一任务 ID：TASK + 6 位字母数字"""
+    chars = string.ascii_uppercase + string.digits  # 排除易混淆的 0/O, 1/I 可选用
+    for _ in range(100):
+        suffix = "".join(random.choices(chars, k=6))
+        tid = f"TASK{suffix}"
+        if not AutomationTask.objects.filter(task_id=tid).exists():
+            return tid
+    raise ValueError("无法生成唯一 task_id，请重试")
 
 
 class AutomationTask(models.Model):
@@ -23,6 +37,13 @@ class AutomationTask(models.Model):
         PAUSED = "paused", "已暂停"
         ERROR = "error", "异常"
 
+    task_id = models.CharField(
+        "任务ID",
+        max_length=10,
+        unique=True,
+        blank=True,
+        help_text="10位唯一ID，以TASK开头",
+    )
     name = models.CharField("任务名称", max_length=100)
     task_type = models.CharField(
         "任务类型", max_length=20, choices=TaskType.choices, default=TaskType.SCHEDULE
@@ -50,6 +71,11 @@ class AutomationTask(models.Model):
         verbose_name = "自动化任务"
         verbose_name_plural = "自动化任务"
         ordering = ["-created_at"]
+
+    def save(self, *args, **kwargs):
+        if not self.task_id:
+            self.task_id = generate_task_id()
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name

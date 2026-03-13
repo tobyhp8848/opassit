@@ -84,7 +84,7 @@
                 </a>
               </li>
               <li class="nav-item">
-                <a href="/admin/accounts/userorganizationrole/" class="nav-link">
+                <a href="{% url 'accounts:uor_list' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>用户-组织-角色</p>
                 </a>
@@ -98,7 +98,7 @@
             </a>
             <ul class="nav nav-treeview">
               <li class="nav-item">
-                <a href="/admin/automation/automationtask/" class="nav-link">
+                <a href="{% url 'automation:task_list' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
                   <p>任务列表</p>
                 </a>

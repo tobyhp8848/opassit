@@ -12,4 +12,8 @@ urlpatterns = [
     path("roles/add/", views.RoleCreateView.as_view(), name="role_add"),
     path("roles/<int:pk>/", views.RoleUpdateView.as_view(), name="role_edit"),
     path("roles/<int:pk>/delete/", views.RoleDeleteView.as_view(), name="role_delete"),
+    path("uor/", views.UserOrganizationRoleListView.as_view(), name="uor_list"),
+    path("uor/add/", views.UserOrganizationRoleCreateView.as_view(), name="uor_add"),
+    path("uor/<int:pk>/", views.UserOrganizationRoleUpdateView.as_view(), name="uor_edit"),
+    path("uor/<int:pk>/delete/", views.UserOrganizationRoleDeleteView.as_view(), name="uor_delete"),
 ]

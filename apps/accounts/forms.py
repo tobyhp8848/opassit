@@ -3,9 +3,43 @@ from django import forms
 from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 
-from .models import UserProfile, Role
+from .models import UserProfile, Role, UserOrganizationRole
 
 User = get_user_model()
+
+
+class UserOrganizationRoleForm(forms.ModelForm):
+    """用户-组织-角色 关联表单"""
+
+    class Meta:
+        model = UserOrganizationRole
+        fields = ["user", "organization", "role", "is_primary"]
+        widgets = {
+            "user": forms.Select(attrs={"class": "form-control"}),
+            "organization": forms.Select(attrs={"class": "form-control"}),
+            "role": forms.Select(attrs={"class": "form-control"}),
+            "is_primary": forms.CheckboxInput(attrs={"class": "custom-control-input"}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from apps.organizations.models import Organization
+        self.fields["user"].queryset = User.objects.filter(is_active=True).order_by("username")
+        self.fields["organization"].queryset = Organization.objects.filter(is_active=True).order_by("name")
+        self.fields["role"].queryset = Role.objects.order_by("code")
+
+    def clean(self):
+        data = super().clean()
+        user = data.get("user")
+        org = data.get("organization")
+        role = data.get("role")
+        if user and org and role:
+            qs = UserOrganizationRole.objects.filter(user=user, organization=org, role=role)
+            if self.instance and self.instance.pk:
+                qs = qs.exclude(pk=self.instance.pk)
+            if qs.exists():
+                raise forms.ValidationError("该用户在此组织中已拥有此角色，请勿重复添加。")
+        return data
 
 
 class UserCreateForm(UserCreationForm):

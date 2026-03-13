@@ -1,6 +1,6 @@
 [project]
 name = "opassit"
-version = "0.2.0"
+version = "0.3.0"
 description = "企业运营与自动化工作平台 - Django + MySQL"
 readme = "README.md"
 requires-python = ">=3.10"

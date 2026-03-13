@@ -1,0 +1,28 @@
+{% extends "base_backend.html" %}
+
+{% block title %}删除任务{% endblock %}
+{% block page_title %}删除任务{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">自动化任务</a></li>
+<li class="breadcrumb-item active">删除确认</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-danger">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-exclamation-triangle mr-2"></i>确认删除</h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <p>确定要删除任务 <strong>{{ task.name }}</strong>{% if task.task_id %}（<code>{{ task.task_id }}</code>）{% endif %} 吗？</p>
+      <p class="text-muted small mb-0">删除后不可恢复，请确认无其他依赖。</p>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> 确认删除</button>
+      <a href="{% url 'automation:task_list' %}" class="btn btn-secondary">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

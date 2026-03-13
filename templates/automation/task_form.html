@@ -1,0 +1,98 @@
+{% extends "base_backend.html" %}
+
+{% block title %}{% if task %}编辑{% else %}新增{% endif %}自动化任务{% endblock %}
+{% block page_title %}{% if task %}编辑{% else %}新增{% endif %}任务{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">自动化任务</a></li>
+<li class="breadcrumb-item active">{% if task %}编辑{% else %}新增{% endif %}</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-primary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-robot mr-2"></i>{% if task %}编辑任务{% else %}新增任务{% endif %}</h3>
+    {% if task %}
+    <div class="card-tools">
+      <a href="{% url 'automation:task_delete' task.pk %}" class="btn btn-tool text-danger" title="删除">
+        <i class="fas fa-trash"></i>
+      </a>
+    </div>
+    {% endif %}
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      {% if form.non_field_errors %}
+      <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+      {% endif %}
+      {% if task and task.task_id %}
+      <div class="form-group mb-3">
+        <label class="text-muted small">任务ID</label>
+        <div><code class="bg-light px-2 py-1">{{ task.task_id }}</code></div>
+      </div>
+      {% endif %}
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_name">任务名称 <span class="text-danger">*</span></label>
+            <input type="text" name="name" id="id_name" class="form-control {% if form.name.errors %}is-invalid{% endif %}"
+                   value="{{ form.name.value|default:'' }}" required maxlength="100" placeholder="任务名称">
+            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_task_type">任务类型 <span class="text-danger">*</span></label>
+            <select name="task_type" id="id_task_type" class="form-control {% if form.task_type.errors %}is-invalid{% endif %}" required>
+              {% for v, l in form.fields.task_type.choices %}
+              <option value="{{ v }}" {% if form.task_type.value == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+            {% if form.task_type.errors %}<div class="invalid-feedback d-block">{{ form.task_type.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_organization">所属组织</label>
+            <select name="organization" id="id_organization" class="form-control {% if form.organization.errors %}is-invalid{% endif %}">
+              <option value="">-- 不限 --</option>
+              {% for o in form.fields.organization.queryset %}
+              <option value="{{ o.pk }}" {% if form.organization.value == o.pk %}selected{% endif %}>{{ o.name }}</option>
+              {% endfor %}
+            </select>
+            {% if form.organization.errors %}<div class="invalid-feedback d-block">{{ form.organization.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="form-group">
+            <label for="id_status">状态 <span class="text-danger">*</span></label>
+            <select name="status" id="id_status" class="form-control {% if form.status.errors %}is-invalid{% endif %}" required>
+              {% for v, l in form.fields.status.choices %}
+              <option value="{{ v }}" {% if form.status.value == v %}selected{% endif %}>{{ l }}</option>
+              {% endfor %}
+            </select>
+            {% if form.status.errors %}<div class="invalid-feedback d-block">{{ form.status.errors.0 }}</div>{% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="id_config_json">配置 (JSON)</label>
+        <textarea name="config_json" id="id_config_json" class="form-control {% if form.config_json.errors %}is-invalid{% endif %}" style="font-family: monospace;"
+                  rows="6" placeholder='{"cron": "0 9 * * *", "target": "https://..."}'>{{ form.config_json.value|default:'{}' }}</textarea>
+        <small class="form-text text-muted">JSON 格式，如 cron 表达式、目标 URL、工作流步骤等</small>
+        {% if form.config_json.errors %}<div class="invalid-feedback d-block">{{ form.config_json.errors.0 }}</div>{% endif %}
+      </div>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
+      <a href="{% url 'automation:task_list' %}" class="btn btn-secondary">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

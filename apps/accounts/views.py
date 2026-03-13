@@ -6,8 +6,8 @@ from django.urls import reverse_lazy
 from django.views.generic import ListView, CreateView, UpdateView, DeleteView
 from django.shortcuts import redirect
 
-from .forms import UserCreateForm, UserUpdateForm, RoleForm
-from .models import Role
+from .forms import UserCreateForm, UserUpdateForm, RoleForm, UserOrganizationRoleForm
+from .models import Role, UserOrganizationRole
 
 User = get_user_model()
 
@@ -180,3 +180,72 @@ class RoleDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
 
     def get_queryset(self):
         return super().get_queryset().filter(is_system=False)
+
+
+class UserOrganizationRoleListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    model = UserOrganizationRole
+    template_name = "accounts/uor_list.html"
+    context_object_name = "assignments"
+    paginate_by = 20
+
+    def get_queryset(self):
+        qs = UserOrganizationRole.objects.select_related(
+            "user", "organization", "role"
+        ).order_by("-created_at")
+        q = self.request.GET.get("q", "").strip()
+        if q:
+            qs = qs.filter(user__username__icontains=q) | qs.filter(
+                organization__name__icontains=q
+            )
+        org_id = self.request.GET.get("org")
+        if org_id:
+            qs = qs.filter(organization_id=org_id)
+        role_id = self.request.GET.get("role")
+        if role_id:
+            qs = qs.filter(role_id=role_id)
+        return qs
+
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        from apps.organizations.models import Organization
+        ctx["search_q"] = self.request.GET.get("q", "")
+        ctx["org_filter"] = self.request.GET.get("org", "")
+        ctx["role_filter"] = self.request.GET.get("role", "")
+        ctx["organizations"] = Organization.objects.filter(is_active=True).order_by("name")
+        ctx["roles"] = Role.objects.order_by("code")
+        return ctx
+
+
+class UserOrganizationRoleCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
+    model = UserOrganizationRole
+    form_class = UserOrganizationRoleForm
+    template_name = "accounts/uor_form.html"
+    success_url = reverse_lazy("accounts:uor_list")
+    context_object_name = "assignment"
+
+    def form_valid(self, form):
+        messages.success(self.request, "分配成功")
+        return super().form_valid(form)
+
+
+class UserOrganizationRoleUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
+    model = UserOrganizationRole
+    form_class = UserOrganizationRoleForm
+    template_name = "accounts/uor_form.html"
+    success_url = reverse_lazy("accounts:uor_list")
+    context_object_name = "assignment"
+
+    def form_valid(self, form):
+        messages.success(self.request, "已更新")
+        return super().form_valid(form)
+
+
+class UserOrganizationRoleDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    model = UserOrganizationRole
+    template_name = "accounts/uor_confirm_delete.html"
+    context_object_name = "assignment"
+    success_url = reverse_lazy("accounts:uor_list")
+
+    def delete(self, request, *args, **kwargs):
+        messages.success(request, "已取消分配")
+        return super().delete(request, *args, **kwargs)

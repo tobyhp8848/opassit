@@ -43,5 +43,18 @@ class RoleAdmin(admin.ModelAdmin):
 
 @admin.register(UserOrganizationRole)
 class UserOrganizationRoleAdmin(admin.ModelAdmin):
+    """用户-组织-角色 重定向到 AdminLTE 自定义页面"""
+
     list_display = ["user", "organization", "role", "is_primary"]
-    list_filter = ["organization", "role"]
+
+    def changelist_view(self, request, extra_context=None):
+        return redirect("accounts:uor_list")
+
+    def add_view(self, request, form_url="", extra_context=None):
+        return redirect("accounts:uor_add")
+
+    def change_view(self, request, object_id, form_url="", extra_context=None):
+        return redirect("accounts:uor_edit", pk=object_id)
+
+    def delete_view(self, request, object_id, extra_context=None):
+        return redirect("accounts:uor_delete", pk=object_id)

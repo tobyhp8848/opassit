@@ -3,9 +3,28 @@
 {% block title %}{% if task %}编辑{% else %}新增{% endif %}自动化任务{% endblock %}
 {% block page_title %}{% if task %}编辑{% else %}新增{% endif %}任务{% endblock %}
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
-<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">自动化任务</a></li>
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">任务列表</a></li>
 <li class="breadcrumb-item active">{% if task %}编辑{% else %}新增{% endif %}</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.schedule-recurring-wrap { display: none; }
+.schedule-once-wrap { display: none; }
+.recurrence-weekly-wrap,
+.recurrence-custom-wrap,
+.recurrence-time-wrap { display: none; }
+form[data-schedule="once"] .schedule-once-wrap { display: block; }
+form[data-schedule="recurring"] .schedule-recurring-wrap { display: block; }
+form[data-recurrence="daily"] .recurrence-time-wrap { display: block; }
+form[data-recurrence="weekly"] .recurrence-weekly-wrap { display: block; }
+form[data-recurrence="weekly"] .recurrence-time-wrap { display: block; }
+form[data-recurrence="custom"] .recurrence-custom-wrap { display: block; }
+.recurrence-weekday-check { display: inline-flex; margin-right: 12px; margin-bottom: 4px; }
+.recurrence-weekday-check label { margin-left: 4px; margin-bottom: 0; }
+.attachment-item { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+.attachment-item small { color: #6c757d; }
+</style>
 {% endblock %}
 
 {% block content %}
@@ -20,7 +39,7 @@
     </div>
     {% endif %}
   </div>
-  <form method="post">
+  <form method="post" enctype="multipart/form-data" id="taskForm" data-schedule="{{ form.schedule_type.value|default:'once' }}" data-recurrence="{{ form.recurrence_preset.value|default:'daily' }}">
     {% csrf_token %}
     <div class="card-body">
       {% if form.non_field_errors %}
@@ -55,6 +74,13 @@
         </div>
       </div>
 
+      <div class="form-group">
+        <label for="id_description">任务详细说明</label>
+        <textarea name="description" id="id_description" class="form-control {% if form.description.errors %}is-invalid{% endif %}" rows="4"
+                  placeholder="请简要描述任务目的、步骤、预期结果等">{{ form.description.value|default:'' }}</textarea>
+        {% if form.description.errors %}<div class="invalid-feedback d-block">{{ form.description.errors.0 }}</div>{% endif %}
+      </div>
+
       <div class="row">
         <div class="col-md-6">
           <div class="form-group">
@@ -81,18 +107,137 @@
         </div>
       </div>
 
+      <div class="form-group border rounded p-3 bg-light">
+        <label class="font-weight-bold">计划执行时间</label>
+        <div class="mt-2">
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="schedule_type" id="st_once" value="once" {% if form.schedule_type.value == "once" or not form.schedule_type.value %}checked{% endif %}>
+            <label class="form-check-label" for="st_once">执行一次</label>
+          </div>
+          <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio" name="schedule_type" id="st_recurring" value="recurring" {% if form.schedule_type.value == "recurring" %}checked{% endif %}>
+            <label class="form-check-label" for="st_recurring">周期性执行</label>
+          </div>
+        </div>
+        <div class="schedule-once-wrap mt-3">
+          <label for="id_scheduled_run_at">具体时间（年-月-日 时:分）</label>
+          <input type="datetime-local" name="scheduled_run_at" id="id_scheduled_run_at" class="form-control"
+                 value="{{ form.scheduled_run_at.value|default:'' }}">
+        </div>
+        <div class="schedule-recurring-wrap mt-3">
+          <div class="mb-2">
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="recurrence_preset" id="rp_daily" value="daily" {% if form.recurrence_preset.value == "daily" or not form.recurrence_preset.value %}checked{% endif %}>
+              <label class="form-check-label" for="rp_daily">每天固定时间</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="recurrence_preset" id="rp_weekly" value="weekly" {% if form.recurrence_preset.value == "weekly" %}checked{% endif %}>
+              <label class="form-check-label" for="rp_weekly">每周指定日期</label>
+            </div>
+            <div class="form-check form-check-inline">
+              <input class="form-check-input" type="radio" name="recurrence_preset" id="rp_custom" value="custom" {% if form.recurrence_preset.value == "custom" %}checked{% endif %}>
+              <label class="form-check-label" for="rp_custom">自定义 Cron</label>
+            </div>
+          </div>
+          <div class="recurrence-time-wrap mt-2">
+            <label for="id_recurrence_time">执行时间</label>
+            <input type="time" name="recurrence_time" id="id_recurrence_time" class="form-control" style="max-width: 140px;"
+                   value="{{ form.recurrence_time.value|default:'09:00' }}">
+          </div>
+          <div class="recurrence-weekly-wrap mt-2">
+            <label class="d-block mb-1">选择周几执行</label>
+            <div>
+              {% for v, label in form.fields.recurrence_weekdays.choices %}
+              <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="recurrence_weekdays" id="wd_{{ v }}" value="{{ v }}"
+                       {% if form.recurrence_weekdays.value and v in form.recurrence_weekdays.value %}checked{% endif %}>
+                <label class="form-check-label" for="wd_{{ v }}">{{ label }}</label>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="recurrence-custom-wrap mt-2">
+            <label for="id_cron_expression">Cron 表达式</label>
+            <input type="text" name="cron_expression" id="id_cron_expression" class="form-control" maxlength="100"
+                   placeholder="0 9 * * *  (每天 9:00)" value="{{ form.cron_expression.value|default:'' }}">
+            <small class="form-text text-muted">格式：分 时 日 月 周，如 0 9 * * 1,3,5 表示周一三五 9:00</small>
+          </div>
+        </div>
+      </div>
+
       <div class="form-group">
         <label for="id_config_json">配置 (JSON)</label>
         <textarea name="config_json" id="id_config_json" class="form-control {% if form.config_json.errors %}is-invalid{% endif %}" style="font-family: monospace;"
-                  rows="6" placeholder='{"cron": "0 9 * * *", "target": "https://..."}'>{{ form.config_json.value|default:'{}' }}</textarea>
-        <small class="form-text text-muted">JSON 格式，如 cron 表达式、目标 URL、工作流步骤等</small>
+                  rows="4" placeholder='{"target": "https://..."}'>{{ form.config_json.value|default:'{}' }}</textarea>
+        <small class="form-text text-muted">JSON 格式，如目标 URL、工作流步骤等</small>
         {% if form.config_json.errors %}<div class="invalid-feedback d-block">{{ form.config_json.errors.0 }}</div>{% endif %}
+      </div>
+
+      <div class="form-group border rounded p-3">
+        <label class="font-weight-bold">附件上传</label>
+        <p class="text-muted small mb-2">支持批量上传文件或直接上传整个文件夹。可为每批文件添加备注。</p>
+        <div class="mb-2">
+          <label class="btn btn-outline-primary btn-sm">
+            <i class="fas fa-file-upload"></i> 选择文件（可多选）
+            <input type="file" name="attachments" multiple class="d-none" id="id_attachments">
+          </label>
+          <label class="btn btn-outline-secondary btn-sm ml-1">
+            <i class="fas fa-folder-open"></i> 选择文件夹
+            <input type="file" name="folder_files" multiple webkitdirectory class="d-none" id="id_folder">
+          </label>
+        </div>
+        <input type="text" name="attachment_remark" class="form-control form-control-sm" placeholder="本批附件备注（可选）" maxlength="200" style="max-width: 400px;">
+        {% if task and task.attachments.exists %}
+        <div class="mt-3">
+          <strong>已上传附件：</strong>
+          <ul class="list-unstyled mb-0">
+            {% for att in task.attachments.all %}
+            <li class="attachment-item">
+              <a href="{{ att.file.url }}" target="_blank"><i class="fas fa-file"></i> {{ att.file.name|slice:"30:" }}</a>
+              {% if att.remark %}<small>（{{ att.remark }}）</small>{% endif %}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
       </div>
     </div>
     <div class="card-footer">
       <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> 保存</button>
       <a href="{% url 'automation:task_list' %}" class="btn btn-secondary">取消</a>
+      <a href="{% url 'automation:task_board' %}" class="btn btn-outline-info ml-2">任务看板</a>
     </div>
   </form>
 </div>
+
+<script>
+(function() {
+  var form = document.getElementById('taskForm');
+  var stOnce = document.getElementById('st_once');
+  var stRecurring = document.getElementById('st_recurring');
+
+  function updateSchedule() {
+    var v = form.querySelector('input[name="schedule_type"]:checked');
+    if (v) form.setAttribute('data-schedule', v.value);
+  }
+  function updateRecurrence() {
+    var v = form.querySelector('input[name="recurrence_preset"]:checked');
+    if (v) form.setAttribute('data-recurrence', v.value);
+  }
+  stOnce && stOnce.addEventListener('change', updateSchedule);
+  stRecurring && stRecurring.addEventListener('change', updateSchedule);
+  form.querySelectorAll('input[name="recurrence_preset"]').forEach(function(r) {
+    r.addEventListener('change', updateRecurrence);
+  });
+
+  var folderInput = document.getElementById('id_folder');
+  if (folderInput) {
+    folderInput.addEventListener('change', function() {
+      if (this.files.length > 0) {
+        document.getElementById('id_attachments').value = '';
+      }
+    });
+  }
+})();
+</script>
 {% endblock %}

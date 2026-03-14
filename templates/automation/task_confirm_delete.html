@@ -3,8 +3,7 @@
 {% block title %}删除任务{% endblock %}
 {% block page_title %}删除任务{% endblock %}
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
-<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">自动化任务</a></li>
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">任务列表</a></li>
 <li class="breadcrumb-item active">删除确认</li>
 {% endblock %}
 
@@ -17,7 +16,7 @@
     {% csrf_token %}
     <div class="card-body">
       <p>确定要删除任务 <strong>{{ task.name }}</strong>{% if task.task_id %}（<code>{{ task.task_id }}</code>）{% endif %} 吗？</p>
-      <p class="text-muted small mb-0">删除后不可恢复，请确认无其他依赖。</p>
+      <p class="text-muted small mb-0">任务将移至「已经删除任务」列表，可在该列表中恢复。</p>
     </div>
     <div class="card-footer">
       <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> 确认删除</button>

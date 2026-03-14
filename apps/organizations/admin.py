@@ -48,13 +48,9 @@ class OrganizationAdmin(admin.ModelAdmin):
 
     def org_type_badge(self, obj):
         colors = {
-            "company": "secondary",
-            "group": "primary",
+            "headquarters": "primary",
             "subsidiary": "info",
-            "distributor": "success",
-            "sub_distributor": "warning",
-            "third_distributor": "info",
-            "fourth_distributor": "secondary",
+            "department": "secondary",
         }
         color = colors.get(obj.org_type, "secondary")
         return format_html(

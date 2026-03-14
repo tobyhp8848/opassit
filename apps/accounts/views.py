@@ -1,15 +1,23 @@
-"""用户管理视图 - AdminLTE 风格"""
+"""用户管理视图 - AdminLTE 风格，含审计与软删除"""
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
 from django.urls import reverse_lazy
-from django.views.generic import ListView, CreateView, UpdateView, DeleteView
-from django.shortcuts import redirect
+from django.views.generic import ListView, CreateView, UpdateView, DeleteView, View
+from django.shortcuts import redirect, get_object_or_404
+from django.utils import timezone
+from django.db import transaction
+from django.db.models import Q
 
 from .forms import UserCreateForm, UserUpdateForm, RoleForm, UserOrganizationRoleForm
-from .models import Role, UserOrganizationRole
+from .models import Role, UserOrganizationRole, UserProfile
 
 User = get_user_model()
+
+
+def _log_audit(request, action, target_model, target_id, target_repr="", extra=None):
+    from apps.audit.models import log_audit
+    log_audit(request, action, target_model, target_id, target_repr, extra)
 
 
 class StaffRequiredMixin(UserPassesTestMixin):
@@ -17,6 +25,15 @@ class StaffRequiredMixin(UserPassesTestMixin):
         return self.request.user.is_staff or self.request.user.is_superuser
 
     def handle_no_permission(self):
+        return redirect("/")
+
+
+class SuperuserRequiredMixin(UserPassesTestMixin):
+    def test_func(self):
+        return self.request.user.is_superuser
+
+    def handle_no_permission(self):
+        messages.error(self.request, "仅超级管理员可执行此操作")
         return redirect("/")
 
 
@@ -28,9 +45,11 @@ class UserListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
 
     def get_queryset(self):
         qs = User.objects.select_related("profile__organization").order_by("-date_joined")
+        # 排除已软删除用户（profile.deleted_at 已设置）
+        qs = qs.exclude(profile__deleted_at__isnull=False)
         q = self.request.GET.get("q", "").strip()
         if q:
-            qs = qs.filter(username__icontains=q) | qs.filter(email__icontains=q)
+            qs = (qs.filter(username__icontains=q) | qs.filter(email__icontains=q)).distinct()
         is_active = self.request.GET.get("is_active")
         if is_active is not None:
             qs = qs.filter(is_active=is_active == "1")
@@ -54,14 +73,21 @@ class UserCreateView(LoginRequiredMixin, StaffRequiredMixin, CreateView):
     success_url = reverse_lazy("accounts:user_list")
     context_object_name = "user_obj"
 
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request
+        return kwargs
+
     def get_context_data(self, **kwargs):
         ctx = super().get_context_data(**kwargs)
         ctx["user_obj"] = None
         return ctx
 
     def form_valid(self, form):
+        resp = super().form_valid(form)
+        _log_audit(self.request, "create", "user", self.object.pk, self.object.username)
         messages.success(self.request, "用户创建成功")
-        return super().form_valid(form)
+        return resp
 
 
 class UserUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
@@ -71,20 +97,103 @@ class UserUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
     success_url = reverse_lazy("accounts:user_list")
     context_object_name = "user_obj"
 
+    def get_queryset(self):
+        # 不允许编辑已软删除用户（需先恢复）
+        return User.objects.exclude(profile__deleted_at__isnull=False)
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["request"] = self.request
+        return kwargs
+
     def form_valid(self, form):
+        resp = super().form_valid(form)
+        _log_audit(self.request, "update", "user", self.object.pk, self.object.username)
         messages.success(self.request, "用户已更新")
-        return super().form_valid(form)
+        return resp
 
 
 class UserDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):
+    """软删除用户 - 移至已删除用户列表（不进行硬删除）"""
     model = User
     template_name = "accounts/user_confirm_delete.html"
     context_object_name = "user_obj"
     success_url = reverse_lazy("accounts:user_list")
 
+    def get_queryset(self):
+        # 可删除的用户：未软删除（profile 不存在或 profile.deleted_at 为空）
+        return User.objects.filter(
+            Q(profile__isnull=True) | Q(profile__deleted_at__isnull=True)
+        ).distinct()
+
+    def post(self, request, *args, **kwargs):
+        """重写 post，仅执行软删除，绝不调用父类 delete() 避免硬删除"""
+        self.object = self.get_object()
+        with transaction.atomic():
+            self.object.is_active = False
+            self.object.save(update_fields=["is_active"])
+            profile, _ = UserProfile.objects.get_or_create(
+                user=self.object, defaults={"organization": None}
+            )
+            UserProfile.objects.filter(pk=profile.pk).update(
+                deleted_at=timezone.now(),
+                deleted_by_id=request.user.pk,
+            )
+        _log_audit(request, "delete", "user", self.object.pk, self.object.username)
+        messages.success(request, "用户已移至已删除用户列表")
+        return redirect(self.success_url)
+
+
+class UserDeletedListView(LoginRequiredMixin, StaffRequiredMixin, ListView):
+    """已删除用户列表 - 展示 profile.deleted_at 已设置的软删除用户"""
+    model = User
+    template_name = "accounts/user_deleted.html"
+    context_object_name = "users"
+    paginate_by = 20
+
+    def get_queryset(self):
+        # 直接过滤：有 profile 且 profile.deleted_at 已设置的软删除用户
+        return (
+            User.objects.filter(profile__deleted_at__isnull=False)
+            .select_related("profile", "profile__organization", "profile__deleted_by")
+            .order_by("-profile__deleted_at")
+        )
+
+
+class UserRestoreView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """恢复已删除用户"""
+    success_url = reverse_lazy("accounts:user_deleted_list")
+
+    def post(self, request, pk):
+        user_obj = get_object_or_404(User, pk=pk, profile__deleted_at__isnull=False)
+        user_obj.is_active = True
+        user_obj.save(update_fields=["is_active"])
+        profile = user_obj.profile
+        profile.deleted_at = None
+        profile.deleted_by = None
+        profile.save(update_fields=["deleted_at", "deleted_by"])
+        _log_audit(request, "restore", "user", user_obj.pk, user_obj.username)
+        messages.success(request, "用户已恢复")
+        return redirect(self.success_url)
+
+
+class UserPermanentDeleteView(LoginRequiredMixin, SuperuserRequiredMixin, DeleteView):
+    """永久删除用户（仅超级管理员），仅允许删除已软删除的用户"""
+    model = User
+    template_name = "accounts/user_confirm_permanent_delete.html"
+    context_object_name = "user_obj"
+    success_url = reverse_lazy("accounts:user_deleted_list")
+
+    def get_queryset(self):
+        return User.objects.filter(profile__deleted_at__isnull=False)
+
     def delete(self, request, *args, **kwargs):
-        messages.success(request, "用户已删除")
-        return super().delete(request, *args, **kwargs)
+        self.object = self.get_object()
+        pk, repr_str = self.object.pk, self.object.username
+        super().delete(request, *args, **kwargs)
+        _log_audit(request, "permanent_delete", "user", pk, repr_str)
+        messages.success(request, "用户已永久删除")
+        return redirect(self.success_url)
 
 
 class RoleListView(LoginRequiredMixin, StaffRequiredMixin, ListView):

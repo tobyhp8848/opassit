@@ -3,7 +3,7 @@
 {% block title %}{% if org %}编辑{% else %}新增{% endif %}组织{% endblock %}
 {% block page_title %}{% if org %}编辑{% else %}新增{% endif %}组织{% endblock %}
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="{% url 'organizations:list' %}">组织架构</a></li>
+<li class="breadcrumb-item"><a href="{% url 'organizations:list' %}">组织管理</a></li>
 <li class="breadcrumb-item active">{% if org %}编辑{% else %}新增{% endif %}</li>
 {% endblock %}
 
@@ -52,11 +52,12 @@
           <div class="form-group">
             <label for="id_parent">上级组织</label>
             <select name="parent" id="id_parent" class="form-control {% if form.parent.errors %}is-invalid{% endif %}">
-              <option value="">— 无（顶级）</option>
+              <option value="">— 无（总公司为顶级）</option>
               {% for o in parent_options %}
               <option value="{{ o.pk }}" {% if form.parent.value == o.pk %}selected{% endif %}>{{ o.name }} ({{ o.get_org_type_display }})</option>
               {% endfor %}
             </select>
+            <small class="form-text text-muted">层级：总公司 → 子公司 → 子公司部门</small>
             {% if form.parent.errors %}<div class="invalid-feedback">{{ form.parent.errors.0 }}</div>{% endif %}
           </div>
         </div>

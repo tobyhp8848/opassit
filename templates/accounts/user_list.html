@@ -4,7 +4,6 @@
 {% block title %}用户管理{% endblock %}
 {% block page_title %}用户管理{% endblock %}
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
 <li class="breadcrumb-item active">用户管理</li>
 {% endblock %}
 
@@ -13,6 +12,9 @@
   <div class="card-header">
     <h3 class="card-title"><i class="fas fa-users mr-2"></i>用户管理</h3>
     <div class="card-tools">
+      <a href="{% url 'accounts:user_deleted_list' %}" class="btn btn-outline-secondary btn-sm mr-1">
+        <i class="fas fa-user-slash"></i> 已删除用户
+      </a>
       <a href="{% url 'accounts:user_add' %}" class="btn btn-primary btn-sm">
         <i class="fas fa-plus"></i> 新增用户
       </a>

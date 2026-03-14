@@ -10,6 +10,7 @@ User = get_user_model()
 
 class UserProfileInline(admin.StackedInline):
     model = UserProfile
+    fk_name = "user"
     can_delete = False
     verbose_name_plural = "用户档案"
 

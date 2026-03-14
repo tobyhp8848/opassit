@@ -89,6 +89,12 @@
                   <p>用户-组织-角色</p>
                 </a>
               </li>
+              <li class="nav-item">
+                <a href="{% url 'accounts:user_deleted_list' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>已经删除用户</p>
+                </a>
+              </li>
             </ul>
           </li>
           <li class="nav-item">
@@ -98,9 +104,51 @@
             </a>
             <ul class="nav nav-treeview">
               <li class="nav-item">
+                <a href="{% url 'automation:task_board' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>任务看板</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'automation:task_add' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>提交任务</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'automation:task_pending_list' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>待审核任务</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'automation:task_assign_build_list' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>待指派人员构建工作</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'automation:task_build_acceptance_list' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>待构建工作验收</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'automation:task_executable_list' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>可执行任务</p>
+                </a>
+              </li>
+              <li class="nav-item">
                 <a href="{% url 'automation:task_list' %}" class="nav-link">
                   <i class="far fa-circle nav-icon"></i>
-                  <p>任务列表</p>
+                  <p>所有任务列表</p>
+                </a>
+              </li>
+              <li class="nav-item">
+                <a href="{% url 'automation:task_deleted_list' %}" class="nav-link">
+                  <i class="far fa-circle nav-icon"></i>
+                  <p>已经删除任务</p>
                 </a>
               </li>
             </ul>

@@ -1,21 +1,17 @@
 """
 组织架构模型
-支持：单公司、集团与分子公司、总代理商与子代理商
+三层结构：总公司、子公司、子公司部门
 """
 from django.db import models
 
 
 class Organization(models.Model):
-    """组织/机构 - 支持集团、分子公司、总代、子代层级"""
+    """组织/机构 - 总公司、子公司、子公司部门"""
 
     class OrgType(models.TextChoices):
-        COMPANY = "company", "单公司/单位"
-        GROUP = "group", "集团公司"
-        SUBSIDIARY = "subsidiary", "分子公司"
-        DISTRIBUTOR = "distributor", "总代理商"
-        SUB_DISTRIBUTOR = "sub_distributor", "子代理商"
-        THIRD_DISTRIBUTOR = "third_distributor", "第三级代理"
-        FOURTH_DISTRIBUTOR = "fourth_distributor", "第四级代理"
+        HEADQUARTERS = "headquarters", "总公司"
+        SUBSIDIARY = "subsidiary", "子公司"
+        DEPARTMENT = "department", "子公司部门"
 
     name = models.CharField("组织名称", max_length=100)
     code = models.CharField("组织编码", max_length=50, unique=True, null=True, blank=True)
@@ -23,7 +19,7 @@ class Organization(models.Model):
         "组织类型",
         max_length=20,
         choices=OrgType.choices,
-        default=OrgType.COMPANY,
+        default=OrgType.HEADQUARTERS,
     )
     parent = models.ForeignKey(
         "self",

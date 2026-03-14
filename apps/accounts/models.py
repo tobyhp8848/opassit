@@ -48,6 +48,15 @@ class UserProfile(models.Model):
     )
     phone = models.CharField("手机号", max_length=20, blank=True)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
+    deleted_at = models.DateTimeField("删除时间", null=True, blank=True)
+    deleted_by = models.ForeignKey(
+        "auth.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="deleted_profiles",
+        verbose_name="删除人",
+    )
 
     class Meta:
         verbose_name = "用户档案"

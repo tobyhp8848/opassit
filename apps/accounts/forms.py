@@ -64,16 +64,30 @@ class UserCreateForm(UserCreationForm):
     phone = forms.CharField(max_length=20, required=False, label="手机号", widget=forms.TextInput(attrs={"class": "form-control"}))
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
         super().__init__(*args, **kwargs)
         from apps.organizations.models import Organization
         self.fields["organization"].queryset = Organization.objects.filter(is_active=True).order_by("name")
         for f in ["username", "email", "password1", "password2"]:
             if f in self.fields and hasattr(self.fields[f], "widget"):
                 self.fields[f].widget.attrs.setdefault("class", "form-control")
+        if not self.instance or not self.instance.pk:
+            self.fields["is_staff"].initial = False
+            self.fields["is_superuser"].initial = False
+        self.fields["is_staff"].required = False
+        self.fields["is_superuser"].required = False
 
     def save(self, commit=True):
-        user = super().save(commit=commit)
+        user = super().save(commit=False)
+        # 直接从 request.POST 读取复选框，避免 HTML 复选框未勾选不提交导致的绑定问题
+        if self.request and self.request.method == "POST":
+            user.is_staff = self.request.POST.get("is_staff") == "1"
+            user.is_superuser = self.request.POST.get("is_superuser") == "1"
+        else:
+            user.is_staff = bool(self.cleaned_data.get("is_staff", False))
+            user.is_superuser = bool(self.cleaned_data.get("is_superuser", False))
         if commit:
+            user.save()
             UserProfile.objects.update_or_create(user=user, defaults={
                 "organization": self.cleaned_data.get("organization"),
                 "phone": self.cleaned_data.get("phone", "") or "",
@@ -103,9 +117,13 @@ class UserUpdateForm(forms.ModelForm):
     phone = forms.CharField(max_length=20, required=False, label="手机号", widget=forms.TextInput(attrs={"class": "form-control"}))
 
     def __init__(self, *args, **kwargs):
+        self.request = kwargs.pop("request", None)
         super().__init__(*args, **kwargs)
         from apps.organizations.models import Organization
         self.fields["organization"].queryset = Organization.objects.filter(is_active=True).order_by("name")
+        self.fields["is_staff"].required = False
+        self.fields["is_superuser"].required = False
+        self.fields["is_active"].required = False
         try:
             profile = self.instance.profile
         except UserProfile.DoesNotExist:
@@ -115,12 +133,23 @@ class UserUpdateForm(forms.ModelForm):
             self.fields["phone"].initial = profile.phone
 
     def save(self, commit=True):
-        user = super().save(commit=commit)
+        user = super().save(commit=False)
+        # 直接从 request.POST 读取复选框值，避免 HTML 复选框未勾选不提交导致的绑定问题
+        if self.request and self.request.method == "POST":
+            user.is_staff = self.request.POST.get("is_staff") == "1"
+            user.is_superuser = self.request.POST.get("is_superuser") == "1"
+            user.is_active = self.request.POST.get("is_active", "1") == "1"
+        else:
+            user.is_staff = bool(self.cleaned_data.get("is_staff", False))
+            user.is_superuser = bool(self.cleaned_data.get("is_superuser", False))
         if commit:
-            UserProfile.objects.update_or_create(user=user, defaults={
+            user.save()
+            # 仅更新 organization、phone，绝不触碰 deleted_at/deleted_by（软删除字段）
+            defaults = {
                 "organization": self.cleaned_data.get("organization"),
                 "phone": self.cleaned_data.get("phone", "") or "",
-            })
+            }
+            UserProfile.objects.update_or_create(user=user, defaults=defaults)
         return user
 
 

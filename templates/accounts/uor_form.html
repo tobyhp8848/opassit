@@ -3,8 +3,7 @@
 {% block title %}{% if assignment %}编辑{% else %}新增{% endif %}用户组织角色{% endblock %}
 {% block page_title %}{% if assignment %}编辑{% else %}新增{% endif %}分配{% endblock %}
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
-<li class="breadcrumb-item"><a href="{% url 'accounts:uor_list' %}">用户组织角色</a></li>
+<li class="breadcrumb-item"><a href="{% url 'accounts:uor_list' %}">用户-组织-角色</a></li>
 <li class="breadcrumb-item active">{% if assignment %}编辑{% else %}新增{% endif %}</li>
 {% endblock %}
 

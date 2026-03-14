@@ -1,16 +1,22 @@
 {% extends "base_backend.html" %}
 
-{% block title %}自动化任务{% endblock %}
-{% block page_title %}自动化任务{% endblock %}
+{% block title %}所有任务列表{% endblock %}
+{% block extra_css %}
+<style>
+.approval-status-cell { position: relative; }
+.approval-status-cell .approval-dropdown { position: absolute; left: 0; top: 100%; margin-top: 2px; z-index: 1050; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+</style>
+{% endblock %}
+{% block page_title %}所有任务列表{% endblock %}
 {% block breadcrumb %}
-<li class="breadcrumb-item"><a href="/dashboard/">首页</a></li>
-<li class="breadcrumb-item active">自动化任务</li>
+<li class="breadcrumb-item active">所有任务列表</li>
 {% endblock %}
 
 {% block content %}
+<div style="display:none">{% csrf_token %}</div>
 <div class="card card-outline card-primary">
   <div class="card-header">
-    <h3 class="card-title"><i class="fas fa-robot mr-2"></i>自动化任务</h3>
+    <h3 class="card-title"><i class="fas fa-robot mr-2"></i>所有任务列表</h3>
     <div class="card-tools">
       <a href="{% url 'automation:task_add' %}" class="btn btn-primary btn-sm">
         <i class="fas fa-plus"></i> 新增任务
@@ -27,7 +33,7 @@
         <div class="col-md-2">
           <label class="small text-muted mb-1">任务类型</label>
           <select name="task_type" class="form-control">
-            <option value="">全部</option>
+            <option value="" {% if not task_type_filter %}selected{% endif %}>全部</option>
             <option value="scrape" {% if task_type_filter == "scrape" %}selected{% endif %}>数据抓取</option>
             <option value="schedule" {% if task_type_filter == "schedule" %}selected{% endif %}>定时任务</option>
             <option value="workflow" {% if task_type_filter == "workflow" %}selected{% endif %}>工作流</option>
@@ -37,29 +43,42 @@
         <div class="col-md-2">
           <label class="small text-muted mb-1">所属组织</label>
           <select name="org" class="form-control">
-            <option value="">全部</option>
+            <option value="" {% if not org_filter %}selected{% endif %}>全部</option>
             {% for o in organizations %}
-            <option value="{{ o.pk }}" {% if org_filter == o.pk|stringformat:"d" %}selected{% endif %}>{{ o.name }}</option>
+            <option value="{{ o.pk }}" {% if org_filter and org_filter == o.pk|stringformat:"d" %}selected{% endif %}>{{ o.name }}{% if not o.is_active %} (已禁用){% endif %}</option>
             {% endfor %}
           </select>
         </div>
         <div class="col-md-2">
           <label class="small text-muted mb-1">创建人</label>
           <select name="created_by" class="form-control">
-            <option value="">全部</option>
+            <option value="" {% if not created_by_filter %}selected{% endif %}>全部</option>
             {% for u in creators %}
-            <option value="{{ u.pk }}" {% if created_by_filter == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.username }}</option>
+            <option value="{{ u.pk }}" {% if created_by_filter and created_by_filter == u.pk|stringformat:"d" %}selected{% endif %}>{{ u.username }}{% if not u.is_active %} (已停用){% endif %}</option>
             {% endfor %}
           </select>
         </div>
         <div class="col-md-2">
           <label class="small text-muted mb-1">状态</label>
           <select name="status" class="form-control">
-            <option value="">全部</option>
+            <option value="" {% if not status_filter %}selected{% endif %}>全部</option>
             <option value="draft" {% if status_filter == "draft" %}selected{% endif %}>草稿</option>
             <option value="active" {% if status_filter == "active" %}selected{% endif %}>运行中</option>
             <option value="paused" {% if status_filter == "paused" %}selected{% endif %}>已暂停</option>
             <option value="error" {% if status_filter == "error" %}selected{% endif %}>异常</option>
+          </select>
+        </div>
+        <div class="col-md-2">
+          <label class="small text-muted mb-1">审批状态</label>
+          <select name="approval_status" class="form-control">
+            <option value="" {% if not approval_status_filter %}selected{% endif %}>全部</option>
+            <option value="pending" {% if approval_status_filter == "pending" %}selected{% endif %}>待审核</option>
+            <option value="approved" {% if approval_status_filter == "approved" %}selected{% endif %}>审批通过</option>
+            <option value="assign_build" {% if approval_status_filter == "assign_build" %}selected{% endif %}>指派人员构建工作</option>
+            <option value="assign_done" {% if approval_status_filter == "assign_done" %}selected{% endif %}>指派任务完成</option>
+            <option value="executable" {% if approval_status_filter == "executable" %}selected{% endif %}>任务可执行</option>
+            <option value="rejected" {% if approval_status_filter == "rejected" %}selected{% endif %}>已驳回</option>
+            <option value="cancelled" {% if approval_status_filter == "cancelled" %}selected{% endif %}>被取消</option>
           </select>
         </div>
         <div class="col-md-1">
@@ -68,25 +87,54 @@
       </div>
     </form>
 
+    <div id="batch-bar" class="alert alert-light border mb-3 py-2 px-3" style="display:none;">
+      <span class="mr-3"><strong>已选 <span id="batch-count">0</span> 个任务</strong></span>
+      <form id="batch-form" method="post" action="{% url 'automation:task_batch' %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="action" id="batch-action-input">
+        <div class="btn-group mr-2">
+          <label class="mr-1 align-middle small text-muted">批量设为：</label>
+          <select name="status" id="batch-approve-status" class="form-control form-control-sm" style="width:auto; display:inline-block;" required>
+            <option value="">请选择审批状态</option>
+            <option value="pending">待审核</option>
+            <option value="approved">审批通过</option>
+            <option value="assign_build">指派人员构建工作</option>
+            <option value="assign_done">指派任务完成</option>
+            <option value="executable">任务可执行</option>
+            <option value="rejected">已驳回</option>
+            <option value="cancelled">被取消</option>
+          </select>
+          <button type="button" class="btn btn-sm btn-outline-success" id="batch-approve-btn"><i class="fas fa-check"></i> 批量审核</button>
+        </div>
+        <button type="button" class="btn btn-sm btn-outline-primary mr-2" id="batch-execute-btn"><i class="fas fa-play"></i> 批量执行</button>
+        <button type="button" class="btn btn-sm btn-outline-danger" id="batch-delete-btn"><i class="fas fa-trash"></i> 批量删除</button>
+      </form>
+    </div>
+
     <div class="table-responsive">
       <table class="table table-bordered table-hover table-striped mb-0">
         <thead class="thead-light">
           <tr>
+            <th width="40" class="text-center"><input type="checkbox" id="select-all" title="全选" class="task-select-all"></th>
             <th width="60" class="text-center">NO#</th>
             <th width="110"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=task_id&order={% if sort_field == 'task_id' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">任务ID {% if sort_field == 'task_id' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
             <th width="180"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=name&order={% if sort_field == 'name' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">任务名称 {% if sort_field == 'name' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
             <th width="100"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=task_type&order={% if sort_field == 'task_type' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">类型 {% if sort_field == 'task_type' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
             <th><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=organization&order={% if sort_field == 'organization' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">所属组织 {% if sort_field == 'organization' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
             <th width="90"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=status&order={% if sort_field == 'status' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">状态 {% if sort_field == 'status' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
+            <th width="90">审批状态</th>
             <th width="120"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=created_by&order={% if sort_field == 'created_by' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">创建人 {% if sort_field == 'created_by' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
             <th width="140"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=created_at&order={% if sort_field == 'created_at' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">创建时间 {% if sort_field == 'created_at' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
             <th width="140"><a href="?{% if base_params %}{{ base_params }}&{% endif %}sort=last_run_at&order={% if sort_field == 'last_run_at' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-dark">上次运行 {% if sort_field == 'last_run_at' %}<i class="fas fa-sort-{% if sort_order == 'asc' %}up{% else %}down{% endif %}"></i>{% else %}<i class="fas fa-sort text-muted"></i>{% endif %}</a></th>
-            <th width="140">操作</th>
+            <th width="100" class="text-center">被执行次数</th>
+            <th width="180">操作</th>
           </tr>
         </thead>
         <tbody>
           {% for t in tasks %}
           <tr>
+            <td class="text-center"><input type="checkbox" name="ids" value="{{ t.pk }}" class="task-row-check" data-approval-status="{{ t.approval_status|default:'pending' }}"></td>
             <td class="text-center text-muted">{% if page_obj %}{{ page_obj.start_index|add:forloop.counter|add:"-1" }}{% else %}{{ forloop.counter }}{% endif %}</td>
             <td><code class="text-primary">{{ t.task_id|default:"—" }}</code></td>
             <td><strong>{{ t.name }}</strong></td>
@@ -105,10 +153,37 @@
               {% elif t.status == "error" %}<span class="badge badge-danger">异常</span>
               {% else %}<span class="badge badge-secondary">{{ t.get_status_display }}</span>{% endif %}
             </td>
+            <td class="approval-status-cell" data-task-id="{{ t.pk }}" data-status="{{ t.approval_status|default:'pending' }}" data-url="{% url 'automation:task_set_approval_status' t.pk %}">
+              <span class="badge badge-{% if t.approval_status == 'pending' %}warning{% elif t.approval_status == 'approved' %}success{% elif t.approval_status == 'assign_build' %}info{% elif t.approval_status == 'assign_done' %}primary{% elif t.approval_status == 'executable' %}success{% elif t.approval_status == 'rejected' %}danger{% elif t.approval_status == 'cancelled' %}secondary{% else %}secondary{% endif %} approval-badge" style="cursor:pointer;" title="点击切换审批状态">
+                {{ t.get_approval_status_display }}
+              </span>
+              <div class="approval-dropdown dropdown-menu" style="display:none; min-width:140px;">
+                <a class="dropdown-item" href="#" data-status="pending">待审核</a>
+                <a class="dropdown-item" href="#" data-status="approved">审批通过</a>
+                <a class="dropdown-item" href="#" data-status="assign_build">指派人员构建工作</a>
+                <a class="dropdown-item" href="#" data-status="assign_done">指派任务完成</a>
+                <a class="dropdown-item" href="#" data-status="executable">任务可执行</a>
+                <a class="dropdown-item" href="#" data-status="rejected">已驳回</a>
+                <a class="dropdown-item" href="#" data-status="cancelled">被取消</a>
+              </div>
+            </td>
             <td>{{ t.created_by.username|default:"—" }}</td>
             <td>{{ t.created_at|date:"Y-m-d H:i" }}</td>
             <td>{{ t.last_run_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            <td class="text-center">
+              <a href="{% url 'automation:task_execution_history' t.pk %}" class="{% if t.execution_count and t.execution_count > 0 %}text-primary font-weight-bold{% else %}text-muted{% endif %}" title="查看完整操作记录">{{ t.execution_count|default:0 }}</a>
+            </td>
             <td>
+              <span class="execute-btn-wrap" style="display:{% if t.approval_status == 'executable' %}inline{% else %}none{% endif %}">
+                <form method="post" action="{% url 'automation:task_execute' t.pk %}" class="d-inline" title="执行任务">
+                  {% csrf_token %}
+                  <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                  <button type="submit" class="btn btn-sm btn-success mr-1"><i class="fas fa-play"></i> 执行</button>
+                </form>
+              </span>
+              <a href="{% url 'automation:task_preview' t.pk %}" class="btn btn-sm btn-outline-info mr-1" title="预览">
+                <i class="fas fa-eye"></i>
+              </a>
               <a href="{% url 'automation:task_edit' t.pk %}" class="btn btn-sm btn-outline-primary" title="编辑">
                 <i class="fas fa-edit"></i>
               </a>
@@ -119,7 +194,7 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="10" class="text-center text-muted py-5">
+            <td colspan="13" class="text-center text-muted py-5">
               <i class="fas fa-robot fa-3x mb-3" style="opacity:0.3;"></i>
               <p class="mb-2">暂无自动化任务</p>
               <a href="{% url 'automation:task_add' %}" class="btn btn-primary btn-sm">新增任务</a>
@@ -145,4 +220,150 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var csrf = document.querySelector('input[name=csrfmiddlewaretoken]');
+  var token = csrf ? csrf.value : (document.cookie.match(/csrftoken=([^;]+)/) || [])[1];
+  document.querySelectorAll('.approval-status-cell').forEach(function(cell) {
+    var badge = cell.querySelector('.approval-badge');
+    var menu = cell.querySelector('.approval-dropdown');
+    if (!badge || !menu) return;
+    badge.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var open = document.querySelector('.approval-dropdown[style="display: block;"]') || document.querySelector('.approval-dropdown[style="display:block"]');
+      if (open && open !== menu) open.style.display = 'none';
+      menu.style.display = (menu.style.display === 'block') ? 'none' : 'block';
+    });
+    menu.addEventListener('click', function(e) { e.stopPropagation(); });
+    menu.querySelectorAll('.dropdown-item').forEach(function(item) {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        var status = item.getAttribute('data-status');
+        var url = cell.getAttribute('data-url');
+        if (!status || !url || !token) return;
+        menu.style.display = 'none';
+        badge.style.opacity = '0.6';
+        var fd = new FormData();
+        fd.append('status', status);
+        fd.append('csrfmiddlewaretoken', token);
+        fetch(url, {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          badge.style.opacity = '1';
+          if (data.ok) {
+            cell.setAttribute('data-status', data.status);
+            badge.className = 'badge badge-' + data.badge + ' approval-badge';
+            badge.style.cssText = 'cursor:pointer;';
+            badge.title = '点击切换审批状态';
+            badge.textContent = data.label;
+            var row = cell.closest('tr');
+            var cb = row ? row.querySelector('.task-row-check') : null;
+            if (cb) cb.setAttribute('data-approval-status', data.status);
+            var wrap = row ? row.querySelector('.execute-btn-wrap') : null;
+            if (wrap) wrap.style.display = (data.status === 'executable') ? 'inline' : 'none';
+          }
+        }).catch(function() { badge.style.opacity = '1'; });
+      });
+    });
+  });
+  document.addEventListener('click', function() {
+    document.querySelectorAll('.approval-dropdown').forEach(function(m) {
+      if (m.style) m.style.display = 'none';
+    });
+  });
+
+  // 批量操作：全选、多选、操作栏
+  var selectAll = document.getElementById('select-all');
+  var batchBar = document.getElementById('batch-bar');
+  var batchCount = document.getElementById('batch-count');
+  var batchForm = document.getElementById('batch-form');
+  var batchActionInput = document.getElementById('batch-action-input');
+  var rowChecks = document.querySelectorAll('.task-row-check');
+
+  function updateBatchUI() {
+    var checked = document.querySelectorAll('.task-row-check:checked');
+    var n = checked.length;
+    batchCount.textContent = n;
+    batchBar.style.display = n > 0 ? 'block' : 'none';
+    if (selectAll && rowChecks.length > 0) {
+      selectAll.checked = n === rowChecks.length;
+      selectAll.indeterminate = n > 0 && n < rowChecks.length;
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      rowChecks.forEach(function(cb) { cb.checked = selectAll.checked; });
+      updateBatchUI();
+    });
+  }
+  rowChecks.forEach(function(cb) {
+    cb.addEventListener('change', updateBatchUI);
+  });
+
+  function doBatchSubmit(action) {
+    var checked = document.querySelectorAll('.task-row-check:checked');
+    if (checked.length === 0) {
+      alert('请至少选择一个任务');
+      return;
+    }
+    batchForm.querySelectorAll('input[name="ids"]').forEach(function(el) { el.remove(); });
+    checked.forEach(function(cb) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'ids';
+      inp.value = cb.value;
+      batchForm.appendChild(inp);
+    });
+    batchActionInput.value = action;
+    batchForm.submit();
+  }
+
+  var batchApproveBtn = document.getElementById('batch-approve-btn');
+  var batchExecuteBtn = document.getElementById('batch-execute-btn');
+  var batchDeleteBtn = document.getElementById('batch-delete-btn');
+  if (batchApproveBtn) {
+    batchApproveBtn.addEventListener('click', function() {
+      var statusSelect = document.getElementById('batch-approve-status');
+      if (statusSelect && !statusSelect.value) {
+        alert('请先选择审批状态');
+        statusSelect.focus();
+        return;
+      }
+      doBatchSubmit('approve');
+    });
+  }
+  if (batchExecuteBtn) {
+    batchExecuteBtn.addEventListener('click', function() {
+      var checked = document.querySelectorAll('.task-row-check:checked');
+      var executableCount = 0;
+      checked.forEach(function(cb) {
+        if (cb.getAttribute('data-approval-status') === 'executable') executableCount++;
+      });
+      if (checked.length === 0) {
+        alert('请至少选择一个任务');
+        return;
+      }
+      if (executableCount === 0) {
+        alert('所选任务均非「任务可执行」状态，无法执行。请先将审批状态设为「任务可执行」。');
+        return;
+      }
+      doBatchSubmit('execute');
+    });
+  }
+  if (batchDeleteBtn) {
+    batchDeleteBtn.addEventListener('click', function() {
+      if (!confirm('确定要将所选任务移至已删除列表吗？')) return;
+      doBatchSubmit('delete');
+    });
+  }
+})();
+</script>
 {% endblock %}

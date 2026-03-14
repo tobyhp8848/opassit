@@ -1,0 +1,181 @@
+{% extends "base_backend.html" %}
+
+{% block title %}待审核任务{% endblock %}
+{% block page_title %}待审核任务{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">任务列表</a></li>
+<li class="breadcrumb-item active">待审核任务</li>
+{% endblock %}
+
+{% block content %}
+<div style="display:none">{% csrf_token %}</div>
+<div class="card card-outline card-primary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-clipboard-check mr-2"></i>待审核任务</h3>
+    <div class="card-tools">
+      <a href="{% url 'automation:task_add' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> 提交任务
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div id="pending-batch-bar" class="alert alert-light border mb-3 py-2 px-3" style="display:none;">
+      <span class="mr-3"><strong>已选 <span id="pending-batch-count">0</span> 个任务</strong></span>
+      <form id="pending-batch-form" method="post" action="{% url 'automation:task_batch' %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        <input type="hidden" name="action" value="approve">
+        <input type="hidden" name="status" id="pending-batch-status">
+        <button type="button" class="btn btn-sm btn-success mr-2" id="pending-batch-approve-btn"><i class="fas fa-check"></i> 批量审批通过</button>
+        <button type="button" class="btn btn-sm btn-danger mr-2" id="pending-batch-reject-btn"><i class="fas fa-times"></i> 批量驳回</button>
+        <button type="button" class="btn btn-sm btn-secondary" id="pending-batch-cancel-btn"><i class="fas fa-ban"></i> 批量取消</button>
+      </form>
+    </div>
+
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-striped mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th width="40" class="text-center"><input type="checkbox" id="pending-select-all" title="全选" class="pending-select-all"></th>
+            <th width="60" class="text-center">NO#</th>
+            <th width="110">任务ID</th>
+            <th>任务名称</th>
+            <th width="100">类型</th>
+            <th>所属组织</th>
+            <th width="120">创建人</th>
+            <th width="140">创建时间</th>
+            <th width="260">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tasks %}
+          <tr>
+            <td class="text-center"><input type="checkbox" name="ids" value="{{ t.pk }}" class="pending-row-check"></td>
+            <td class="text-center text-muted">{% if page_obj %}{{ page_obj.start_index|add:forloop.counter|add:"-1" }}{% else %}{{ forloop.counter }}{% endif %}</td>
+            <td><code class="text-primary">{{ t.task_id|default:"—" }}</code></td>
+            <td><strong>{{ t.name }}</strong></td>
+            <td>
+              {% if t.task_type == "scrape" %}<span class="badge badge-info">抓取</span>
+              {% elif t.task_type == "schedule" %}<span class="badge badge-primary">定时</span>
+              {% elif t.task_type == "workflow" %}<span class="badge badge-secondary">工作流</span>
+              {% elif t.task_type == "trigger" %}<span class="badge badge-warning">触发器</span>
+              {% else %}{{ t.get_task_type_display }}{% endif %}
+            </td>
+            <td>{{ t.organization.name|default:"—" }}</td>
+            <td>{{ t.created_by.username|default:"—" }}</td>
+            <td>{{ t.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              <a href="{% url 'automation:task_preview' t.pk %}" class="btn btn-sm btn-outline-info" title="预览">
+                <i class="fas fa-eye"></i>
+              </a>
+              <a href="{% url 'automation:task_edit' t.pk %}" class="btn btn-sm btn-outline-secondary" title="查看/编辑">
+                <i class="fas fa-edit"></i>
+              </a>
+              <form method="post" action="{% url 'automation:task_approve' t.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success" title="审批通过">
+                  <i class="fas fa-check"></i> 通过
+                </button>
+              </form>
+              <form method="post" action="{% url 'automation:task_reject' t.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-danger" title="审批驳回">
+                  <i class="fas fa-times"></i> 驳回
+                </button>
+              </form>
+              <form method="post" action="{% url 'automation:task_cancel' t.pk %}" class="d-inline" onsubmit="return confirm('确定取消？');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-secondary" title="取消">
+                  <i class="fas fa-ban"></i> 取消
+                </button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-5">
+              <i class="fas fa-clipboard-check fa-3x mb-3" style="opacity:0.3;"></i>
+              <p class="mb-2">暂无待审核任务</p>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-3">
+      <ul class="pagination pagination-sm justify-content-end mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">上一页</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">下一页</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var selectAll = document.getElementById('pending-select-all');
+  var batchBar = document.getElementById('pending-batch-bar');
+  var batchCount = document.getElementById('pending-batch-count');
+  var batchForm = document.getElementById('pending-batch-form');
+  var statusInput = document.getElementById('pending-batch-status');
+  var rowChecks = document.querySelectorAll('.pending-row-check');
+
+  function updateBatchUI() {
+    var checked = document.querySelectorAll('.pending-row-check:checked');
+    var n = checked.length;
+    batchCount.textContent = n;
+    batchBar.style.display = n > 0 ? 'block' : 'none';
+    if (selectAll && rowChecks.length > 0) {
+      selectAll.checked = n === rowChecks.length;
+      selectAll.indeterminate = n > 0 && n < rowChecks.length;
+    }
+  }
+
+  if (selectAll) {
+    selectAll.addEventListener('change', function() {
+      rowChecks.forEach(function(cb) { cb.checked = selectAll.checked; });
+      updateBatchUI();
+    });
+  }
+  rowChecks.forEach(function(cb) {
+    cb.addEventListener('change', updateBatchUI);
+  });
+
+  function doBatchSubmit(status) {
+    var checked = document.querySelectorAll('.pending-row-check:checked');
+    if (checked.length === 0) {
+      alert('请至少选择一个任务');
+      return;
+    }
+    if (status === 'cancelled' && !confirm('确定批量取消所选任务？')) return;
+    batchForm.querySelectorAll('input[name="ids"]').forEach(function(el) { el.remove(); });
+    checked.forEach(function(cb) {
+      var inp = document.createElement('input');
+      inp.type = 'hidden';
+      inp.name = 'ids';
+      inp.value = cb.value;
+      batchForm.appendChild(inp);
+    });
+    statusInput.value = status;
+    batchForm.submit();
+  }
+
+  var approveBtn = document.getElementById('pending-batch-approve-btn');
+  var rejectBtn = document.getElementById('pending-batch-reject-btn');
+  var cancelBtn = document.getElementById('pending-batch-cancel-btn');
+  if (approveBtn) approveBtn.addEventListener('click', function() { doBatchSubmit('approved'); });
+  if (rejectBtn) rejectBtn.addEventListener('click', function() { doBatchSubmit('rejected'); });
+  if (cancelBtn) cancelBtn.addEventListener('click', function() { doBatchSubmit('cancelled'); });
+})();
+</script>
+{% endblock %}

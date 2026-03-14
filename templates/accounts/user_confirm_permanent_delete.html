@@ -1,0 +1,29 @@
+{% extends "base_backend.html" %}
+
+{% block title %}永久删除用户{% endblock %}
+{% block page_title %}永久删除用户{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">用户管理</a></li>
+<li class="breadcrumb-item"><a href="{% url 'accounts:user_deleted_list' %}">已经删除用户</a></li>
+<li class="breadcrumb-item active">永久删除确认</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-danger">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-exclamation-triangle mr-2"></i>永久删除确认</h3>
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="card-body">
+      <p class="text-danger font-weight-bold">此操作不可逆！将永久从数据库中移除用户记录。</p>
+      <p>确定要永久删除用户 <strong>{{ user_obj.username }}</strong> 吗？</p>
+      <p class="text-muted small mb-0">仅超级管理员可执行永久删除。</p>
+    </div>
+    <div class="card-footer">
+      <button type="submit" class="btn btn-danger"><i class="fas fa-trash"></i> 确认永久删除</button>
+      <a href="{% url 'accounts:user_deleted_list' %}" class="btn btn-secondary">取消</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,545 @@
+{% extends "base_backend.html" %}
+
+{% block title %}任务看板{% endblock %}
+{% block page_title %}任务看板{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">任务列表</a></li>
+<li class="breadcrumb-item active">任务看板</li>
+{% endblock %}
+
+{% block extra_css %}
+<style>
+.task-board-layout { display: flex; gap: 1.5rem; align-items: flex-start; }
+.task-board-calendar {
+  flex: 0 0 320px;
+  background: #fff;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,.08);
+  overflow: hidden;
+}
+.task-board-list {
+  flex: 1;
+  min-width: 0;
+}
+.task-board-list .task-table { font-size: 0.8rem; }
+.task-board-list .task-table th {
+  padding: 8px 10px;
+  background: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 2px solid #dee2e6;
+  white-space: nowrap;
+}
+.task-board-list .task-table td { padding: 6px 10px; border-bottom: 1px solid #eee; vertical-align: middle; }
+.task-board-list .task-table tr:hover { background: #f8f9fa; }
+.task-board-list .task-table .task-item { font-size: 0.8rem; }
+.task-board-list .task-table small { font-size: 0.75rem; color: #6c757d; }
+.task-board-list .task-pagination { padding: 8px; border-top: 1px solid #dee2e6; background: #f8f9fa; }
+.calendar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: linear-gradient(135deg, #17a2b8 0%, #138496 100%);
+  color: #fff;
+}
+.calendar-header h4 { margin: 0; font-size: 1.1rem; }
+.calendar-nav { display: flex; gap: 8px; }
+.calendar-nav a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,.2);
+  color: #fff;
+  border-radius: 6px;
+  text-decoration: none;
+}
+.calendar-nav a:hover { background: rgba(255,255,255,.35); color: #fff; }
+.calendar-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.calendar-table th {
+  padding: 8px 4px;
+  text-align: center;
+  font-weight: 600;
+  color: #495057;
+  border-bottom: 1px solid #dee2e6;
+}
+.calendar-table td {
+  padding: 4px;
+  vertical-align: top;
+  min-height: 48px;
+  border: 1px solid #eee;
+}
+.calendar-table .day-num {
+  display: block;
+  text-align: center;
+  width: 28px;
+  height: 28px;
+  line-height: 28px;
+  margin: 0 auto 4px;
+  border-radius: 50%;
+  font-weight: 500;
+}
+.calendar-table .day-other { color: #ccc; }
+.calendar-table .day-today .day-num {
+  background: #17a2b8;
+  color: #fff;
+}
+.calendar-table td.day-selected .day-num {
+  background: #ffc107 !important;
+  color: #333 !important;
+  box-shadow: 0 0 0 2px rgba(255,193,7,0.5);
+}
+.calendar-table .day-in-range { background: #fff3cd; }
+.calendar-table .day-cell { cursor: pointer; user-select: none; }
+.calendar-table .day-cell:hover:not(.day-other) { background: #f0f8ff; }
+.calendar-table .day-cell.dragging-range { background: #ffeeba; }
+.calendar-selection-display {
+  padding: 10px 16px;
+  background: #e7f5ff;
+  border-bottom: 1px solid #b3d7f5;
+  font-size: 0.9rem;
+}
+.calendar-selection-display .sel-label { color: #495057; font-weight: 600; }
+.calendar-selection-display .sel-value { color: #0c5460; }
+.calendar-table .day-has-task .day-num { color: #17a2b8; font-weight: 700; }
+.calendar-table .day-events {
+  font-size: 0.65rem;
+  line-height: 1.2;
+}
+.calendar-table .day-events a {
+  display: block;
+  color: #17a2b8;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+.calendar-range-form { padding: 8px 12px; background: #f8f9fa; border-top: 1px solid #dee2e6; font-size: 0.8rem; }
+@media (max-width: 992px) {
+  .task-board-layout { flex-direction: column; }
+  .task-board-calendar { flex: 1 1 auto; width: 100%; max-width: 400px; }
+}
+.approval-status-cell { position: relative; }
+.approval-status-cell .approval-dropdown {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 1050;
+  box-shadow: 0 2px 12px rgba(0,0,0,.18);
+  background: #fff;
+  border: 1px solid rgba(0,0,0,.15);
+  border-radius: 4px;
+  padding: 4px 0;
+}
+.approval-status-cell .approval-dropdown .dropdown-item { padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.approval-status-cell .approval-dropdown .dropdown-item:hover { background: #f8f9fa; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div style="display:none">{% csrf_token %}</div>
+<div class="card card-outline card-info">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-calendar-alt mr-2"></i>任务看板</h3>
+    <div class="card-tools">
+      <a href="{% url 'automation:task_add' %}" class="btn btn-primary btn-sm">
+        <i class="fas fa-plus"></i> 新增任务
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <form method="get" class="mb-3 row align-items-end">
+      <div class="col-md-3">
+        <label class="small text-muted">搜索</label>
+        <input type="text" name="q" class="form-control form-control-sm" placeholder="任务名称/ID" value="{{ request.GET.q }}">
+      </div>
+      <div class="col-md-2">
+        <label class="small text-muted">审批状态</label>
+        <select name="approval_status" class="form-control form-control-sm">
+          <option value="">全部</option>
+          <option value="pending" {% if request.GET.approval_status == "pending" %}selected{% endif %}>待审核</option>
+          <option value="approved" {% if request.GET.approval_status == "approved" %}selected{% endif %}>审批通过</option>
+          <option value="assign_build" {% if request.GET.approval_status == "assign_build" %}selected{% endif %}>指派人员构建工作</option>
+          <option value="assign_done" {% if request.GET.approval_status == "assign_done" %}selected{% endif %}>指派任务完成</option>
+          <option value="executable" {% if request.GET.approval_status == "executable" %}selected{% endif %}>任务可执行</option>
+          <option value="rejected" {% if request.GET.approval_status == "rejected" %}selected{% endif %}>已驳回</option>
+          <option value="cancelled" {% if request.GET.approval_status == "cancelled" %}selected{% endif %}>被取消</option>
+        </select>
+      </div>
+      <div class="col-md-1">
+        <input type="hidden" name="year" value="{{ calendar_year }}">
+        <input type="hidden" name="month" value="{{ calendar_month }}">
+        {% if request.GET.date %}
+        <input type="hidden" name="date" value="{{ request.GET.date }}">
+        {% elif request.GET.start and request.GET.end %}
+        <input type="hidden" name="start" value="{{ request.GET.start }}">
+        <input type="hidden" name="end" value="{{ request.GET.end }}">
+        {% endif %}
+        <button type="submit" class="btn btn-info btn-sm"><i class="fas fa-search"></i></button>
+      </div>
+    </form>
+
+    <div class="task-board-layout">
+      <!-- 左侧：可调整的当月日历 -->
+      <div class="task-board-calendar">
+        <div class="calendar-header">
+          <h4>{{ calendar_month_name }}</h4>
+          <div class="calendar-nav">
+            <a href="?year={{ prev_year }}&month={{ prev_month }}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.approval_status %}&approval_status={{ request.GET.approval_status }}{% endif %}" title="上月">
+              <i class="fas fa-chevron-left"></i>
+            </a>
+            {% if not is_today %}
+            <a href="?{{ base_query }}" title="本月">今</a>
+            {% endif %}
+            <a href="?year={{ next_year }}&month={{ next_month }}{% if request.GET.q %}&q={{ request.GET.q|urlencode }}{% endif %}{% if request.GET.approval_status %}&approval_status={{ request.GET.approval_status }}{% endif %}" title="下月">
+              <i class="fas fa-chevron-right"></i>
+            </a>
+          </div>
+        </div>
+        <div class="calendar-selection-display">
+          <span class="sel-label">开始：</span><span class="sel-value" id="calSelStart">{{ sel_start_str }}</span>
+          &nbsp;&nbsp;
+          <span class="sel-label">结束：</span><span class="sel-value" id="calSelEnd">{{ sel_end_str }}</span>
+          {% if is_range %}<span class="badge badge-info ml-2">范围</span>{% endif %}
+          <small class="text-muted ml-2">（拖动日期块选择范围）</small>
+        </div>
+        <table class="calendar-table" id="calendarTable">
+          <thead>
+            <tr>
+              {% for h in weekday_headers %}
+              <th>{{ h }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for week in calendar_grid %}
+            <tr>
+              {% for cell in week %}
+              <td class="day-cell {% if cell.is_other %}day-other{% else %}{% if is_today and cell.day == today_day %}day-today{% endif %}{% if cell.is_selected %}day-selected{% endif %}{% if cell.is_in_range and not cell.is_selected %}day-in-range{% endif %}{% if cell.tasks %}day-has-task{% endif %}{% endif %}"
+                  {% if cell.date_str %}data-date="{{ cell.date_str }}"{% endif %}
+                  data-base-query="{{ base_query }}">
+                {% if cell.is_other %}
+                  <span class="day-num day-other">{{ cell.day|default:"·" }}</span>
+                {% else %}
+                  <span class="day-block text-decoration-none text-body" style="display:block;">
+                    <span class="day-num {% if is_today and cell.day == today_day %}day-today{% endif %} {% if cell.is_selected %}day-selected{% endif %} {% if cell.tasks %}day-has-task{% endif %}">{{ cell.day }}</span>
+                    {% if cell.tasks %}
+                    <div class="day-events">
+                      {% for t in cell.tasks %}
+                      <a href="{% url 'automation:task_edit' t.pk %}" title="{{ t.name }}" onclick="event.stopPropagation();">{{ t.name|truncatechars:8 }}</a>
+                      {% endfor %}
+                    </div>
+                    {% endif %}
+                  </span>
+                {% endif %}
+              </td>
+              {% endfor %}
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="calendar-range-form">
+          <form method="get" class="form-inline align-items-center">
+            <input type="hidden" name="year" value="{{ calendar_year }}">
+            <input type="hidden" name="month" value="{{ calendar_month }}">
+            {% if request.GET.q %}<input type="hidden" name="q" value="{{ request.GET.q }}">{% endif %}
+            {% if request.GET.approval_status %}<input type="hidden" name="approval_status" value="{{ request.GET.approval_status }}">{% endif %}
+            <label class="mr-2 mb-0">范围:</label>
+            <input type="date" name="start" value="{{ sel_start_str }}" class="form-control form-control-sm mr-1" style="width:110px;">
+            <span class="mr-1">至</span>
+            <input type="date" name="end" value="{{ sel_end_str }}" class="form-control form-control-sm mr-1" style="width:110px;">
+            <button type="submit" class="btn btn-sm btn-outline-secondary">应用</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- 右侧：任务列表（表头+表格+无刷新翻页） -->
+      <div class="task-board-list">
+        <div class="d-flex justify-content-between align-items-center mb-2 flex-wrap">
+          <span class="text-muted small">
+            {% if is_range %}
+            已选 {{ sel_start_str }} 至 {{ sel_end_str }}
+            {% else %}
+            已选 {{ sel_start_str }}
+            {% endif %}
+            · 共 <span id="taskTotalCount">{{ tasks|length }}</span> 个任务
+          </span>
+        </div>
+        <div class="border rounded overflow-hidden">
+          <table class="table task-table mb-0" id="taskBoardTable">
+            <thead>
+              <tr>
+                <th width="40">NO#</th>
+                <th width="95">任务ID</th>
+                <th>任务名称</th>
+                <th width="95">计划执行时间</th>
+                <th width="75">审批状态</th>
+                <th width="80">提交人</th>
+                <th width="140">操作</th>
+              </tr>
+            </thead>
+            <tbody id="taskBoardBody">
+              {% for t in tasks %}
+              <tr class="task-row" data-index="{{ forloop.counter0 }}">
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td><code class="small">{{ t.task_id|default:"—" }}</code></td>
+                <td><a href="{% url 'automation:task_edit' t.pk %}" style="font-size:0.85rem;">{{ t.name }}</a></td>
+                <td>
+                  {% if t.scheduled_run_at %}{{ t.scheduled_run_at|date:"m-d H:i" }}{% elif t.cron_expression %}<span class="badge badge-info badge-sm">周期</span>{% else %}—{% endif %}
+                </td>
+                <td class="approval-status-cell" data-task-id="{{ t.pk }}" data-status="{{ t.approval_status|default:'pending' }}" data-url="{% url 'automation:task_set_approval_status' t.pk %}">
+                  <span class="badge badge-{% if t.approval_status == 'pending' %}warning{% elif t.approval_status == 'approved' %}success{% elif t.approval_status == 'assign_build' %}info{% elif t.approval_status == 'assign_done' %}primary{% elif t.approval_status == 'executable' %}success{% elif t.approval_status == 'rejected' %}danger{% elif t.approval_status == 'cancelled' %}secondary{% else %}secondary{% endif %} approval-badge" style="cursor:pointer;" title="点击切换审批状态">
+                    {{ t.get_approval_status_display }}
+                  </span>
+                  <div class="approval-dropdown dropdown-menu" style="display:none; min-width:140px;">
+                    <a class="dropdown-item" href="#" data-status="pending">待审核</a>
+                    <a class="dropdown-item" href="#" data-status="approved">审批通过</a>
+                    <a class="dropdown-item" href="#" data-status="assign_build">指派人员构建工作</a>
+                    <a class="dropdown-item" href="#" data-status="assign_done">指派任务完成</a>
+                    <a class="dropdown-item" href="#" data-status="executable">任务可执行</a>
+                    <a class="dropdown-item" href="#" data-status="rejected">已驳回</a>
+                    <a class="dropdown-item" href="#" data-status="cancelled">被取消</a>
+                  </div>
+                </td>
+                <td>{{ t.created_by.username|default:"—" }}</td>
+                <td>
+                  <span class="execute-btn-wrap" style="display:{% if t.approval_status == 'executable' %}inline{% else %}none{% endif %}">
+                    <form method="post" action="{% url 'automation:task_execute' t.pk %}" class="d-inline" title="执行任务">
+                      {% csrf_token %}
+                      <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                      <button type="submit" class="btn btn-sm btn-success py-0 px-1" title="执行"><i class="fas fa-play" style="font-size:0.7rem;"></i></button>
+                    </form>
+                  </span>
+                  <a href="{% url 'automation:task_preview' t.pk %}" class="btn btn-sm btn-outline-info py-0 px-1" title="预览"><i class="fas fa-eye" style="font-size:0.7rem;"></i></a>
+                  <a href="{% url 'automation:task_edit' t.pk %}" class="btn btn-sm btn-outline-primary py-0 px-1" title="编辑"><i class="fas fa-edit" style="font-size:0.7rem;"></i></a>
+                  <form method="post" action="{% url 'automation:task_delete' t.pk %}" class="d-inline" onsubmit="return confirm('确定删除？');">
+                    {% csrf_token %}
+                    <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                    <button type="submit" class="btn btn-sm btn-outline-danger py-0 px-1" title="删除"><i class="fas fa-trash" style="font-size:0.7rem;"></i></button>
+                  </form>
+                </td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="7" class="text-center text-muted py-4">暂无任务</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if tasks|length > 15 %}
+          <div class="task-pagination d-flex justify-content-between align-items-center" id="taskPagination">
+            <span class="small text-muted">第 <span id="taskPageNum">1</span> / <span id="taskTotalPages">1</span> 页</span>
+            <div>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2" id="taskPrevBtn" disabled>上一页</button>
+              <button type="button" class="btn btn-sm btn-outline-secondary py-0 px-2 ml-1" id="taskNextBtn">下一页</button>
+            </div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+  var table = document.getElementById('calendarTable');
+  if (!table) return;
+  var baseQuery = '{{ base_query|escapejs }}';
+  var selStartEl = document.getElementById('calSelStart');
+  var selEndEl = document.getElementById('calSelEnd');
+
+  var dragStart = null;
+  var dragEnd = null;
+  var isDragging = false;
+
+  function parseDate(s) {
+    var m = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    return m ? new Date(parseInt(m[1],10), parseInt(m[2],10)-1, parseInt(m[3],10)) : null;
+  }
+  function dateStr(d) {
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function datesBetween(d1, d2) {
+    var a = parseDate(d1), b = parseDate(d2);
+    if (!a || !b) return [];
+    if (a > b) { var t = a; a = b; b = t; }
+    var out = [];
+    for (var cur = new Date(a); cur <= b; cur.setDate(cur.getDate()+1)) {
+      out.push(dateStr(cur));
+    }
+    return out;
+  }
+
+  function updateDragHighlight() {
+    table.querySelectorAll('.day-cell[data-date]').forEach(function(td) {
+      td.classList.remove('dragging-range');
+      if (!dragStart) return;
+      var ds = dragStart, de = dragEnd || dragStart;
+      var arr = datesBetween(ds, de);
+      if (arr.indexOf(td.getAttribute('data-date')) >= 0) {
+        td.classList.add('dragging-range');
+      }
+    });
+  }
+
+  function goToSelection(startStr, endStr) {
+    var q = baseQuery;
+    if (startStr === endStr) {
+      window.location.href = '?' + q + (q ? '&' : '') + 'date=' + encodeURIComponent(startStr);
+    } else {
+      window.location.href = '?' + q + (q ? '&' : '') + 'start=' + encodeURIComponent(startStr) + '&end=' + encodeURIComponent(endStr);
+    }
+  }
+
+  table.querySelectorAll('.day-cell[data-date]').forEach(function(td) {
+    var dateVal = td.getAttribute('data-date');
+    var q = td.getAttribute('data-base-query') || baseQuery;
+
+    td.addEventListener('mousedown', function(e) {
+      if (e.button !== 0) return;
+      if (e.target.closest('a')) return;
+      e.preventDefault();
+      isDragging = true;
+      dragStart = dateVal;
+      dragEnd = dateVal;
+      updateDragHighlight();
+    });
+    td.addEventListener('mouseenter', function() {
+      if (isDragging && dragStart) {
+        dragEnd = dateVal;
+        updateDragHighlight();
+        if (selStartEl && selEndEl) {
+          var s = dragStart, t = dragEnd;
+          if (s > t) { var x = s; s = t; t = x; }
+          selStartEl.textContent = s;
+          selEndEl.textContent = t;
+        }
+      }
+    });
+  });
+
+  document.addEventListener('mouseup', function(e) {
+    if (!isDragging) return;
+    isDragging = false;
+    var startStr = dragStart;
+    var endStr = dragEnd || dragStart;
+    if (!startStr) return;
+    if (startStr > endStr) { var t = startStr; startStr = endStr; endStr = t; }
+    dragStart = null;
+    dragEnd = null;
+    table.querySelectorAll('.day-cell').forEach(function(td) { td.classList.remove('dragging-range'); });
+    goToSelection(startStr, endStr);
+  });
+})();
+
+(function() {
+  var rows = document.querySelectorAll('#taskBoardBody .task-row');
+  var PAGE_SIZE = 15;
+  if (rows.length <= PAGE_SIZE) return;
+  var totalPages = Math.ceil(rows.length / PAGE_SIZE);
+  var currentPage = 1;
+  var pagination = document.getElementById('taskPagination');
+  var pageNumEl = document.getElementById('taskPageNum');
+  var totalPagesEl = document.getElementById('taskTotalPages');
+  var prevBtn = document.getElementById('taskPrevBtn');
+  var nextBtn = document.getElementById('taskNextBtn');
+  if (!pagination || !pageNumEl) return;
+
+  function showPage(page) {
+    currentPage = Math.max(1, Math.min(page, totalPages));
+    var start = (currentPage - 1) * PAGE_SIZE;
+    var end = start + PAGE_SIZE;
+    rows.forEach(function(r, i) {
+      r.style.display = (i >= start && i < end) ? '' : 'none';
+    });
+    pageNumEl.textContent = currentPage;
+    totalPagesEl.textContent = totalPages;
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+  }
+  totalPagesEl.textContent = totalPages;
+  prevBtn.addEventListener('click', function() { showPage(currentPage - 1); });
+  nextBtn.addEventListener('click', function() { showPage(currentPage + 1); });
+  showPage(1);
+})();
+
+(function() {
+  var csrf = document.querySelector('input[name=csrfmiddlewaretoken]');
+  var token = csrf ? csrf.value : (document.cookie.match(/csrftoken=([^;]+)/) || [])[1];
+  var cells = document.querySelectorAll('#taskBoardTable .approval-status-cell');
+  cells.forEach(function(cell) {
+    var badge = cell.querySelector('.approval-badge');
+    var menu = cell.querySelector('.approval-dropdown');
+    if (!badge || !menu) return;
+    function positionDropdown() {
+      var rect = badge.getBoundingClientRect();
+      menu.style.left = rect.left + 'px';
+      menu.style.top = (rect.bottom + 4) + 'px';
+    }
+    badge.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      document.querySelectorAll('#taskBoardTable .approval-dropdown').forEach(function(m) {
+        if (m !== menu) m.style.display = 'none';
+      });
+      if (menu.style.display === 'block') {
+        menu.style.display = 'none';
+      } else {
+        positionDropdown();
+        menu.style.display = 'block';
+      }
+    });
+    menu.addEventListener('click', function(e) { e.stopPropagation(); });
+    menu.querySelectorAll('.dropdown-item').forEach(function(item) {
+      item.addEventListener('click', function(e) {
+        e.preventDefault();
+        var status = item.getAttribute('data-status');
+        var url = cell.getAttribute('data-url');
+        if (!status || !url || !token) return;
+        menu.style.display = 'none';
+        badge.style.opacity = '0.6';
+        var fd = new FormData();
+        fd.append('status', status);
+        fd.append('csrfmiddlewaretoken', token);
+        fetch(url, {
+          method: 'POST',
+          body: fd,
+          credentials: 'same-origin',
+          headers: { 'X-Requested-With': 'XMLHttpRequest' }
+        }).then(function(r) { return r.json(); }).then(function(data) {
+          badge.style.opacity = '1';
+          if (data.ok) {
+            cell.setAttribute('data-status', data.status);
+            badge.className = 'badge badge-' + data.badge + ' approval-badge';
+            badge.style.cssText = 'cursor:pointer;';
+            badge.title = '点击切换审批状态';
+            badge.textContent = data.label;
+            var row = cell.closest('tr');
+            var wrap = row ? row.querySelector('.execute-btn-wrap') : null;
+            if (wrap) wrap.style.display = (data.status === 'executable') ? 'inline' : 'none';
+          }
+        }).catch(function() { badge.style.opacity = '1'; });
+      });
+    });
+  });
+  document.addEventListener('click', function() {
+    document.querySelectorAll('#taskBoardTable .approval-dropdown').forEach(function(m) {
+      m.style.display = 'none';
+    });
+  });
+  window.addEventListener('scroll', function() {
+    document.querySelectorAll('#taskBoardTable .approval-dropdown').forEach(function(m) {
+      if (m.style.display === 'block') m.style.display = 'none';
+    });
+  }, true);
+})();
+</script>
+{% endblock %}

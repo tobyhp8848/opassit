@@ -1,0 +1,82 @@
+{% extends "base_backend.html" %}
+{% load account_tags %}
+
+{% block title %}已经删除用户{% endblock %}
+{% block page_title %}已经删除用户{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'accounts:user_list' %}">用户管理</a></li>
+<li class="breadcrumb-item active">已经删除用户</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-secondary">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-user-slash mr-2"></i>已经删除用户</h3>
+    <div class="card-tools">
+      <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-primary btn-sm">
+        <i class="fas fa-arrow-left"></i> 返回用户列表
+      </a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-striped">
+        <thead class="thead-light">
+          <tr>
+            <th>用户名</th>
+            <th>姓名</th>
+            <th>邮箱</th>
+            <th>主组织</th>
+            <th>删除人</th>
+            <th>删除时间</th>
+            <th width="180">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for u in users %}
+          <tr>
+            <td><strong>{{ u.username }}</strong></td>
+            <td>{{ u.get_full_name|default:"—" }}</td>
+            <td>{{ u.email|default:"—" }}</td>
+            <td>{{ u|user_org|default:"—" }}</td>
+            <td>{% if u.profile.deleted_by %}{{ u.profile.deleted_by.username }}{% else %}—{% endif %}</td>
+            <td>{% if u.profile.deleted_at %}{{ u.profile.deleted_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}</td>
+            <td>
+              <form method="post" action="{% url 'accounts:user_restore' u.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-success" title="恢复">
+                  <i class="fas fa-undo"></i> 恢复
+                </button>
+              </form>
+              {% if user.is_superuser %}
+              <a href="{% url 'accounts:user_permanent_delete' u.pk %}" class="btn btn-sm btn-outline-danger" title="永久删除（仅超级管理员）">
+                <i class="fas fa-trash"></i> 永久删除
+              </a>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">暂无已删除用户</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj %}
+    <nav class="mt-2">
+      <ul class="pagination pagination-sm justify-content-end">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">上一页</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">第 {{ page_obj.number }}/{{ page_obj.paginator.num_pages }} 页</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">下一页</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

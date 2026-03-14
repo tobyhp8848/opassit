@@ -30,6 +30,7 @@ INSTALLED_APPS = [
     "apps.organizations",
     "apps.accounts",
     "apps.automation",
+    "apps.audit",
     "apps.core",
 ]
 

@@ -1,0 +1,97 @@
+{% extends "base_backend.html" %}
+
+{% block title %}待构建工作验收{% endblock %}
+{% block page_title %}待构建工作验收{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">任务列表</a></li>
+<li class="breadcrumb-item"><a href="{% url 'automation:task_assign_build_list' %}">待指派人员构建工作</a></li>
+<li class="breadcrumb-item active">待构建工作验收</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-success">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-clipboard-check mr-2"></i>待构建工作验收</h3>
+    <div class="card-tools">
+      <a href="{% url 'automation:task_assign_build_list' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> 待指派构建</a>
+      <a href="{% url 'automation:task_list' %}" class="btn btn-outline-secondary btn-sm ml-1">任务列表</a>
+    </div>
+  </div>
+  <div class="card-body">
+    <p class="text-muted small mb-3">展示构建工作已完成、等待验收的任务。可执行「确认可执行」或「退回再修改」。</p>
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover table-striped mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th width="60" class="text-center">NO#</th>
+            <th width="110">任务ID</th>
+            <th>任务名称</th>
+            <th width="100">类型</th>
+            <th>所属组织</th>
+            <th width="120">指派人员</th>
+            <th width="120">创建人</th>
+            <th width="140">更新时间</th>
+            <th width="260">操作</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in tasks %}
+          <tr>
+            <td class="text-center text-muted">{% if page_obj %}{{ page_obj.start_index|add:forloop.counter|add:"-1" }}{% else %}{{ forloop.counter }}{% endif %}</td>
+            <td><code class="text-primary">{{ t.task_id|default:"—" }}</code></td>
+            <td><strong>{{ t.name }}</strong></td>
+            <td>
+              {% if t.task_type == "scrape" %}<span class="badge badge-info">抓取</span>
+              {% elif t.task_type == "schedule" %}<span class="badge badge-primary">定时</span>
+              {% elif t.task_type == "workflow" %}<span class="badge badge-secondary">工作流</span>
+              {% elif t.task_type == "trigger" %}<span class="badge badge-warning">触发器</span>
+              {% else %}{{ t.get_task_type_display }}{% endif %}
+            </td>
+            <td>{{ t.organization.name|default:"—" }}</td>
+            <td>{{ t.assigned_to.username|default:"—" }}</td>
+            <td>{{ t.created_by.username|default:"—" }}</td>
+            <td>{{ t.updated_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              <a href="{% url 'automation:task_preview' t.pk %}" class="btn btn-sm btn-outline-info" title="预览"><i class="fas fa-eye"></i></a>
+              <a href="{% url 'automation:task_edit' t.pk %}" class="btn btn-sm btn-outline-secondary" title="编辑"><i class="fas fa-edit"></i></a>
+              <form method="post" action="{% url 'automation:task_confirm_executable' t.pk %}" class="d-inline" onsubmit="return confirm('确认该任务可执行？');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check"></i> 确认可执行</button>
+              </form>
+              <form method="post" action="{% url 'automation:task_return_revision' t.pk %}" class="d-inline" onsubmit="return confirm('确定退回再修改？');">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="{{ request.get_full_path }}">
+                <button type="submit" class="btn btn-sm btn-warning"><i class="fas fa-undo"></i> 退回再修改</button>
+              </form>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-5">
+              <i class="fas fa-clipboard-check fa-3x mb-3" style="opacity:0.3;"></i>
+              <p class="mb-2">暂无待验收任务</p>
+              <a href="{% url 'automation:task_assign_build_list' %}" class="btn btn-primary btn-sm">前往待指派构建</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% if page_obj and page_obj.paginator.num_pages > 1 %}
+    <nav class="mt-3">
+      <ul class="pagination pagination-sm justify-content-end mb-0">
+        {% if page_obj.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">上一页</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">第 {{ page_obj.number }} / {{ page_obj.paginator.num_pages }} 页</span></li>
+        {% if page_obj.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">下一页</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

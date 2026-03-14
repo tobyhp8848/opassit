@@ -1,0 +1,75 @@
+{% extends "base_backend.html" %}
+
+{% block title %}执行记录 - {{ task.name }}{% endblock %}
+{% block page_title %}任务执行详情{% endblock %}
+{% block breadcrumb %}
+<li class="breadcrumb-item"><a href="{% url 'automation:task_list' %}">任务列表</a></li>
+<li class="breadcrumb-item"><a href="{% url 'automation:task_edit' task.pk %}">{{ task.name }}</a></li>
+<li class="breadcrumb-item active">执行记录</li>
+{% endblock %}
+
+{% block content %}
+<div class="card card-outline card-info">
+  <div class="card-header">
+    <h3 class="card-title"><i class="fas fa-history mr-2"></i>{{ task.name }} - 完整操作记录</h3>
+    <div class="card-tools">
+      <a href="{% url 'automation:task_list' %}" class="btn btn-secondary btn-sm"><i class="fas fa-arrow-left"></i> 返回列表</a>
+      <a href="{% url 'automation:task_edit' task.pk %}" class="btn btn-primary btn-sm ml-1"><i class="fas fa-edit"></i> 编辑任务</a>
+    </div>
+  </div>
+  <div class="card-body">
+    <div class="row mb-3">
+      <div class="col-md-6">
+        <p class="mb-1"><strong>任务ID：</strong><code>{{ task.task_id }}</code></p>
+        <p class="mb-1"><strong>创建人：</strong>{{ task.created_by.username|default:"—" }}</p>
+        <p class="mb-1"><strong>创建时间：</strong>{{ task.created_at|date:"Y-m-d H:i:s" }}</p>
+      </div>
+      <div class="col-md-6">
+        <p class="mb-1"><strong>上次运行：</strong>{{ task.last_run_at|date:"Y-m-d H:i:s"|default:"—" }}</p>
+        <p class="mb-1"><strong>所属组织：</strong>{{ task.organization.name|default:"—" }}</p>
+      </div>
+    </div>
+
+    <h5 class="mt-4 mb-2"><i class="fas fa-list-alt mr-1"></i>操作时间线（创建、修改、执行、审批等）</h5>
+    <div class="table-responsive">
+      <table class="table table-bordered table-hover mb-0">
+        <thead class="thead-light">
+          <tr>
+            <th width="100">操作类型</th>
+            <th width="120">操作人</th>
+            <th width="160">操作时间</th>
+            <th width="120">IP地址</th>
+            <th>备注/描述</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in audit_logs %}
+          <tr>
+            <td>
+              {% if log.action == "create" %}<span class="badge badge-success"><i class="fas fa-plus"></i> 创建</span>
+              {% elif log.action == "update" %}<span class="badge badge-info"><i class="fas fa-edit"></i> 修改</span>
+              {% elif log.action == "execute" %}<span class="badge badge-primary"><i class="fas fa-play"></i> 执行</span>
+              {% elif log.action == "approve" %}<span class="badge badge-success"><i class="fas fa-check"></i> 审批通过</span>
+              {% elif log.action == "reject" %}<span class="badge badge-danger"><i class="fas fa-times"></i> 审批驳回</span>
+              {% elif log.action == "cancel" %}<span class="badge badge-secondary"><i class="fas fa-ban"></i> 审批取消</span>
+              {% elif log.action == "delete" %}<span class="badge badge-warning"><i class="fas fa-trash"></i> 删除</span>
+              {% elif log.action == "restore" %}<span class="badge badge-secondary"><i class="fas fa-undo"></i> 恢复</span>
+              {% elif log.action == "permanent_delete" %}<span class="badge badge-dark"><i class="fas fa-trash-alt"></i> 永久删除</span>
+              {% else %}<span class="badge badge-light">{{ log.get_action_display }}</span>{% endif %}
+            </td>
+            <td>{{ log.user.username|default:"—" }}</td>
+            <td>{{ log.created_at|date:"Y-m-d H:i:s" }}</td>
+            <td>{{ log.ip_address|default:"—" }}</td>
+            <td>{{ log.target_repr|default:"—" }}{% if log.extra %}<br><small class="text-muted">{{ log.extra }}</small>{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">暂无操作记录</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

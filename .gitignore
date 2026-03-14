@@ -22,6 +22,8 @@ build/
 # 数据库
 *.db
 mysql_data/
+backups/*.sql
+backups/*.json
 
 # Django
 staticfiles/

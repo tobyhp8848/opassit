@@ -47,6 +47,7 @@ class UserProfile(models.Model):
         verbose_name="主组织",
     )
     phone = models.CharField("手机号", max_length=20, blank=True)
+    must_change_password = models.BooleanField("首次登录须修改密码", default=False)
     created_at = models.DateTimeField("创建时间", auto_now_add=True)
     deleted_at = models.DateTimeField("删除时间", null=True, blank=True)
     deleted_by = models.ForeignKey(

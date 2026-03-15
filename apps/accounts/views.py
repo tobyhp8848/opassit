@@ -1,4 +1,7 @@
 """用户管理视图 - AdminLTE 风格，含审计与软删除"""
+import secrets
+import string
+
 from django.contrib.auth import get_user_model
 from django.contrib.auth.mixins import LoginRequiredMixin, UserPassesTestMixin
 from django.contrib import messages
@@ -106,11 +109,52 @@ class UserUpdateView(LoginRequiredMixin, StaffRequiredMixin, UpdateView):
         kwargs["request"] = self.request
         return kwargs
 
+    def get_context_data(self, **kwargs):
+        ctx = super().get_context_data(**kwargs)
+        key = "password_reset_display"
+        data = self.request.session.get(key)
+        if data and self.object and data.get("username") == self.object.username:
+            ctx["password_reset_username"] = data["username"]
+            ctx["password_reset_password"] = data["password"]
+            del self.request.session[key]
+        return ctx
+
     def form_valid(self, form):
         resp = super().form_valid(form)
         _log_audit(self.request, "update", "user", self.object.pk, self.object.username)
         messages.success(self.request, "用户已更新")
         return resp
+
+
+def _generate_password(length=12):
+    """生成随机密码：字母+数字"""
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(length))
+
+
+class UserResetPasswordView(LoginRequiredMixin, StaffRequiredMixin, View):
+    """重置用户密码 - 生成随机密码，首次登录须修改"""
+
+    def post(self, request, pk):
+        user_obj = get_object_or_404(User, pk=pk)
+        # 排除已软删除
+        if hasattr(user_obj, "profile") and user_obj.profile and user_obj.profile.deleted_at:
+            messages.error(request, "无法重置已删除用户的密码")
+            return redirect("accounts:user_edit", pk=pk)
+        new_password = _generate_password()
+        user_obj.set_password(new_password)
+        user_obj.save(update_fields=["password"])
+        profile, _ = UserProfile.objects.get_or_create(
+            user=user_obj, defaults={"organization": None}
+        )
+        profile.must_change_password = True
+        profile.save(update_fields=["must_change_password"])
+        _log_audit(request, "update", "user", user_obj.pk, user_obj.username, extra={"action": "reset_password"})
+        request.session["password_reset_display"] = {
+            "username": user_obj.username,
+            "password": new_password,
+        }
+        return redirect("accounts:user_edit", pk=pk)
 
 
 class UserDeleteView(LoginRequiredMixin, StaffRequiredMixin, DeleteView):

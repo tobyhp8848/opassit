@@ -37,3 +37,15 @@ class PasswordChangeView(SuccessMessageMixin, LoginRequiredMixin, AuthPasswordCh
     template_name = "core/password_change.html"
     success_url = reverse_lazy("core:dashboard")
     success_message = "密码已修改，请使用新密码登录。"
+
+    def form_valid(self, form):
+        from apps.accounts.models import UserProfile
+        resp = super().form_valid(form)
+        try:
+            profile = self.request.user.profile
+            if profile.must_change_password:
+                profile.must_change_password = False
+                profile.save(update_fields=["must_change_password"])
+        except UserProfile.DoesNotExist:
+            pass
+        return resp

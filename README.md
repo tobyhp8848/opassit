@@ -70,6 +70,31 @@ gunicorn config.wsgi:application --bind 0.0.0.0:8000
 | http://127.0.0.1:8000/health/ | 健康检查 |
 | http://127.0.0.1:8000/api/status/ | API 状态 |
 
+## 重置超级管理员用户名和密码
+
+忘记超级管理员密码或需要修改用户名时，可在项目根目录执行：
+
+```bash
+# 使用默认密码 Admin123! 重置第一个超级管理员
+python manage.py reset_admin
+
+# 指定要重置的用户并设置新密码
+python manage.py reset_admin --username admin --password 你的新密码
+
+# 同时修改用户名和密码
+python manage.py reset_admin --new-username admin --password Admin123!
+```
+
+或使用封装脚本（需先 `chmod +x scripts/reset_admin.sh`）：
+
+```bash
+./scripts/reset_admin.sh                          # 默认重置
+./scripts/reset_admin.sh admin                    # 指定用户名
+./scripts/reset_admin.sh admin 你的新密码         # 指定用户名和新密码
+```
+
+重置后请尽快登录并修改为更安全的密码。
+
 ## 项目结构
 
 ```
